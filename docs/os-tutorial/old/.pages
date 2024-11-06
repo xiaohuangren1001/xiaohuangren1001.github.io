@@ -1,0 +1,4 @@
+nav:
+    - 开始之前: beforestart.md
+    - 旧教程: index.md
+    - 第一个引导扇区: first-boot-sector.md
