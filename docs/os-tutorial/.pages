@@ -1,3 +1,4 @@
 nav:
+  - 操作系统教程: index.md
   - 旧教程: old
   - 新教程: new
