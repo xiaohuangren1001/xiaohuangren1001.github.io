@@ -1,0 +1,1489 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../03-find-loader/">
+      
+      
+        <link rel="next" href="../05-read-kernel-and-into-32/">
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.44">
+    
+    
+      
+        <title>04 加载并跳入 Loader - Oildum/Atklom's Blog</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.0253249f.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/style.css">
+    
+      <link rel="stylesheet" href="../../../assets/highlight.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../../.." title="Oildum/Atklom&#39;s Blog" class="md-header__button md-logo" aria-label="Oildum/Atklom's Blog" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Oildum/Atklom's Blog
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              04 加载并跳入 Loader
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="分享" aria-label="分享" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+    
+  
+  主页
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../" class="md-tabs__link">
+          
+  
+    
+  
+  操作系统教程
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="Oildum/Atklom&#39;s Blog" class="md-nav__button md-logo" aria-label="Oildum/Atklom's Blog" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Oildum/Atklom's Blog
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    主页
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    操作系统教程
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            操作系统教程
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    旧教程
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            旧教程
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../00-beforestart/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    00 开始之前
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../01-first-boot-sector/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    01 第一个引导扇区
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../02-fat12-file-system/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    02 FAT12 文件系统
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../03-find-loader/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    03 查找 Loader
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    04 加载并跳入 Loader
+  </span>
+  
+
+      </a>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../05-read-kernel-and-into-32/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    05 读取内核并进入保护模式
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../06-relocate-and-jump-into-kernel/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    06 重新放置内核并进入内核
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../07-print-impl/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    07 实现我们自己的打印函数
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../08-we-love-makefile/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    08 整理文件
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../09-gdtidt/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    09 重设 GDT、IDT
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../10-irq/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    10 接收外部中断，从时钟开始
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../11-seg-memman/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    11 段式内存管理的实现
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../12-multitasking/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    12 多任务
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../13-kbd-part0/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    13 终于可以打字了——键盘驱动（上）
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../14-kbd-part1/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    14 终于可以打字了——键盘驱动（下）
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../15-syscall/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    15 系统调用——应用程序与系统的交互之门
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../16-shell-d-and-i/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    16 shell的设计与实现
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../17-fat16-part0/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    17 实现FAT16文件系统（1）——基础设施建设：硬盘驱动、RTC
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../18-fat16-part1/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    18 实现FAT16文件系统（2）——格式化、打开文件、创建文件
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../19-fat16-part2/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    19 实现FAT16文件系统（3）——读取文件、写入文件、删除文件
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../20-fat16-part3/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    20 实现FAT16文件系统（4）——上层包装
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../21-fat16-part4/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    21 FAT16 文件系统实战——抛弃软盘，从硬盘启动
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../22-first-app/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    22 第一个应用程序
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../23-c-app-part0/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    23 C语言应用程序（上）
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../24-c-app-part1/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    24 C语言应用程序（下）
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../new/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    新教程
+  </span>
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            新教程
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  <h1>04 加载并跳入 Loader</h1>
+
+<p>在执行流到达 <code>LABEL_FILENAME_FOUND</code> 时，此时的 <code>di</code> 应当正好位于 <code>Loader</code> 所在的文件块中。因此，我们可以通过这个方法获得 <code>Loader</code> 的起始扇区。</p>
+<p>获得之后我们便可以做几件事：读取第一个扇区，查找 <code>FAT</code>，读入下一个扇区，直至所有扇区都被读完。</p>
+<p>不难发现我们需要多次查找 <code>FAT</code>，所以我们干脆把查找 <code>FAT</code> 的过程也包装一下，我们将使用 <code>ax</code> 存储待查询的扇区号，查询结果也放入 <code>ax</code> 中。</p>
+<p>请把下面的代码放到 <code>ReadSector</code> 之后：</p>
+<p><strong>代码 4-1 读取 <code>FAT</code> 项的函数（boot.asm）</strong>
+<div class="highlight"><pre><span></span><code><span class="nl">GetFATEntry:</span>
+<span class="w">    </span><span class="nf">push</span><span class="w"> </span><span class="no">es</span>
+<span class="w">    </span><span class="nf">push</span><span class="w"> </span><span class="no">bx</span>
+<span class="w">    </span><span class="nf">push</span><span class="w"> </span><span class="no">ax</span><span class="w"> </span><span class="c1">; 都会用到，push一下</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="no">BaseOfLoader</span><span class="w"> </span><span class="c1">; 获取Loader的基址</span>
+<span class="w">    </span><span class="nf">sub</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="mi">0100</span><span class="no">h</span><span class="w"> </span><span class="c1">; 留出4KB空间</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">es</span><span class="p">,</span><span class="w"> </span><span class="no">ax</span><span class="w"> </span><span class="c1">; 此处就是缓冲区的基址</span>
+<span class="w">    </span><span class="nf">pop</span><span class="w"> </span><span class="no">ax</span><span class="w"> </span><span class="c1">; ax我们就用不到了</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">byte</span><span class="w"> </span><span class="p">[</span><span class="no">bOdd</span><span class="p">],</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="c1">; 设置bOdd的初值</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">bx</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span>
+<span class="w">    </span><span class="nf">mul</span><span class="w"> </span><span class="no">bx</span><span class="w"> </span><span class="c1">; dx:ax=ax * 3（mul的第二重用法：如有进位，高位将放入dx）</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">bx</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span>
+<span class="w">    </span><span class="nf">div</span><span class="w"> </span><span class="no">bx</span><span class="w"> </span><span class="c1">; dx:ax / 2 -&gt; dx：余数 ax：商</span>
+<span class="c1">; 此处* 1.5的原因是，每个FAT项实际占用的是1.5扇区，所以要把表项 * 1.5</span>
+<span class="w">    </span><span class="nf">cmp</span><span class="w"> </span><span class="no">dx</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="c1">; 没有余数</span>
+<span class="w">    </span><span class="nf">jz</span><span class="w"> </span><span class="no">LABEL_EVEN</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">byte</span><span class="w"> </span><span class="p">[</span><span class="no">bOdd</span><span class="p">],</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="c1">; 那就是奇数了</span>
+<span class="nl">LABEL_EVEN:</span>
+<span class="w">    </span><span class="c1">; 此时ax中应当已经存储了待查找FAT相对于FAT表的偏移，下面我们借此来查找它的扇区号</span>
+<span class="w">    </span><span class="nf">xor</span><span class="w"> </span><span class="no">dx</span><span class="p">,</span><span class="w"> </span><span class="no">dx</span><span class="w"> </span><span class="c1">; dx置0</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">bx</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="no">BPB_BytsPerSec</span><span class="p">]</span>
+<span class="w">    </span><span class="nf">div</span><span class="w"> </span><span class="no">bx</span><span class="w"> </span><span class="c1">; dx:ax / 512 -&gt; ax：商（扇区号）dx：余数（扇区内偏移）</span>
+<span class="w">    </span><span class="nf">push</span><span class="w"> </span><span class="no">dx</span><span class="w"> </span><span class="c1">; 暂存dx，后面要用</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">bx</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="c1">; es:bx：(BaseOfLoader - 4KB):0</span>
+<span class="w">    </span><span class="nf">add</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="no">SectorNoOfFAT1</span><span class="w"> </span><span class="c1">; 实际扇区号</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">cl</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span>
+<span class="w">    </span><span class="nf">call</span><span class="w"> </span><span class="no">ReadSector</span><span class="w"> </span><span class="c1">; 直接读2个扇区，避免出现跨扇区FAT项出现bug</span>
+<span class="w">    </span><span class="nf">pop</span><span class="w"> </span><span class="no">dx</span><span class="w"> </span><span class="c1">; 由于ReadSector未保存dx的值所以这里保存一下</span>
+<span class="w">    </span><span class="nf">add</span><span class="w"> </span><span class="no">bx</span><span class="p">,</span><span class="w"> </span><span class="no">dx</span><span class="w"> </span><span class="c1">; 现在扇区内容在内存中，bx+=dx，即是真正的FAT项</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="no">es</span><span class="p">:</span><span class="no">bx</span><span class="p">]</span><span class="w"> </span><span class="c1">; 读取之</span>
+
+<span class="w">    </span><span class="nf">cmp</span><span class="w"> </span><span class="no">byte</span><span class="w"> </span><span class="p">[</span><span class="no">bOdd</span><span class="p">],</span><span class="w"> </span><span class="mi">1</span>
+<span class="w">    </span><span class="nf">jnz</span><span class="w"> </span><span class="no">LABEL_EVEN_2</span><span class="w"> </span><span class="c1">; 是偶数，则进入LABEL_EVEN_2</span>
+<span class="w">    </span><span class="nf">shr</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="c1">; 高4位为真正的FAT项</span>
+<span class="nl">LABEL_EVEN_2:</span>
+<span class="w">    </span><span class="nf">and</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="no">FFFh</span><span class="w"> </span><span class="c1">; 只保留低4位</span>
+
+<span class="nl">LABEL_GET_FAT_ENRY_OK:</span><span class="w"> </span><span class="c1">; 胜利执行</span>
+<span class="w">    </span><span class="nf">pop</span><span class="w"> </span><span class="no">bx</span>
+<span class="w">    </span><span class="nf">pop</span><span class="w"> </span><span class="no">es</span><span class="w"> </span><span class="c1">; 恢复堆栈</span>
+<span class="w">    </span><span class="nf">ret</span>
+</code></pre></div></p>
+<p>从代码中也能看到，我们的常量喜加一，把下面的代码放到 <code>SectorNoOfRootDirectory</code> 后面：</p>
+<p><strong>代码 4-2 新常量的定义（boot.asm）</strong>
+<div class="highlight"><pre><span></span><code><span class="nf">SectorNoOfFAT1</span><span class="w">          </span><span class="no">equ</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="c1">; 第一个FAT表的开始扇区</span>
+<span class="nf">DeltaSectorNo</span><span class="w">           </span><span class="no">equ</span><span class="w"> </span><span class="mi">17</span><span class="w"> </span><span class="c1">; 由于第一个簇不用，所以RootDirSectors要-2再加上根目录区首扇区和偏移才能得到真正的地址，故把RootDirSectors-2封装成一个常量（17）</span>
+</code></pre></div></p>
+<p>可以看到，除了上文已经出现的常量以外，还定义了一个 <code>DeltaSectorNo</code>，其作用已经在注释中阐明。</p>
+<p>现在是时候加载并跳入 <code>Loader</code> 了：</p>
+<p><strong>代码 4-3 加载并跳入 <code>Loader</code>（boot.asm）</strong>
+<div class="highlight"><pre><span></span><code><span class="nl">LABEL_FILENAME_FOUND:</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="no">RootDirSectors</span><span class="w"> </span><span class="c1">; 将ax置为根目录首扇区（19）</span>
+<span class="w">    </span><span class="nf">and</span><span class="w"> </span><span class="no">di</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="no">FFE0h</span><span class="w"> </span><span class="c1">; 将di设置到此文件块开头</span>
+<span class="w">    </span><span class="nf">add</span><span class="w"> </span><span class="no">di</span><span class="p">,</span><span class="w"> </span><span class="mi">01</span><span class="no">Ah</span><span class="w"> </span><span class="c1">; 此时的di指向Loader的FAT号</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">cx</span><span class="p">,</span><span class="w"> </span><span class="no">word</span><span class="w"> </span><span class="p">[</span><span class="no">es</span><span class="p">:</span><span class="no">di</span><span class="p">]</span><span class="w"> </span><span class="c1">; 获得该扇区的FAT号</span>
+<span class="w">    </span><span class="nf">push</span><span class="w"> </span><span class="no">cx</span><span class="w"> </span><span class="c1">; 将FAT号暂存</span>
+<span class="w">    </span><span class="nf">add</span><span class="w"> </span><span class="no">cx</span><span class="p">,</span><span class="w"> </span><span class="no">ax</span><span class="w"> </span><span class="c1">; +根目录首扇区</span>
+<span class="w">    </span><span class="nf">add</span><span class="w"> </span><span class="no">cx</span><span class="p">,</span><span class="w"> </span><span class="no">DeltaSectorNo</span><span class="w"> </span><span class="c1">; 获得真正的地址</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="no">BaseOfLoader</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">es</span><span class="p">,</span><span class="w"> </span><span class="no">ax</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">bx</span><span class="p">,</span><span class="w"> </span><span class="no">OffsetOfLoader</span><span class="w"> </span><span class="c1">; es:bx：读取扇区的缓冲区地址</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="no">cx</span><span class="w"> </span><span class="c1">; ax：起始扇区号</span>
+
+<span class="nl">LABEL_GOON_LOADING_FILE:</span><span class="w"> </span><span class="c1">; 加载文件</span>
+<span class="w">    </span><span class="nf">push</span><span class="w"> </span><span class="no">ax</span>
+<span class="w">    </span><span class="nf">push</span><span class="w"> </span><span class="no">bx</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">ah</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="no">Eh</span><span class="w"> </span><span class="c1">; AH=0Eh：显示单个字符</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">al</span><span class="p">,</span><span class="w"> </span><span class="err">&#39;</span><span class="p">.</span><span class="err">&#39;</span><span class="w"> </span><span class="c1">; AL：字符内容</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">bl</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="no">Fh</span><span class="w"> </span><span class="c1">; BL：显示属性</span>
+<span class="c1">; 还有BH：页码，此处不管</span>
+<span class="w">    </span><span class="nf">int</span><span class="w"> </span><span class="mi">10</span><span class="no">h</span><span class="w"> </span><span class="c1">; 显示此字符</span>
+<span class="w">    </span><span class="nf">pop</span><span class="w"> </span><span class="no">bx</span>
+<span class="w">    </span><span class="nf">pop</span><span class="w"> </span><span class="no">ax</span><span class="w"> </span><span class="c1">; 上面几行的整体作用：在屏幕上打印一个点</span>
+
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">cl</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span>
+<span class="w">    </span><span class="nf">call</span><span class="w"> </span><span class="no">ReadSector</span><span class="w"> </span><span class="c1">; 读取Loader第一个扇区</span>
+<span class="w">    </span><span class="nf">pop</span><span class="w"> </span><span class="no">ax</span><span class="w"> </span><span class="c1">; 加载FAT号</span>
+<span class="w">    </span><span class="nf">call</span><span class="w"> </span><span class="no">GetFATEntry</span><span class="w"> </span><span class="c1">; 加载FAT项</span>
+<span class="w">    </span><span class="nf">cmp</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="no">FFFh</span>
+<span class="w">    </span><span class="nf">jz</span><span class="w"> </span><span class="no">LABEL_FILE_LOADED</span><span class="w"> </span><span class="c1">; 若此项=0FFF，代表文件结束，直接跳入Loader</span>
+<span class="w">    </span><span class="nf">push</span><span class="w"> </span><span class="no">ax</span><span class="w"> </span><span class="c1">; 重新存储FAT号，但此时的FAT号已经是下一个FAT了</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">dx</span><span class="p">,</span><span class="w"> </span><span class="no">RootDirSectors</span>
+<span class="w">    </span><span class="nf">add</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="no">dx</span><span class="w"> </span><span class="c1">; +根目录首扇区</span>
+<span class="w">    </span><span class="nf">add</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="no">DeltaSectorNo</span><span class="w"> </span><span class="c1">; 获取真实地址</span>
+<span class="w">    </span><span class="nf">add</span><span class="w"> </span><span class="no">bx</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="no">BPB_BytsPerSec</span><span class="p">]</span><span class="w"> </span><span class="c1">; 将bx指向下一个扇区开头</span>
+<span class="w">    </span><span class="nf">jmp</span><span class="w"> </span><span class="no">LABEL_GOON_LOADING_FILE</span><span class="w"> </span><span class="c1">; 加载下一个扇区</span>
+
+<span class="nl">LABEL_FILE_LOADED:</span>
+<span class="w">    </span><span class="nf">jmp</span><span class="w"> </span><span class="no">BaseOfLoader</span><span class="p">:</span><span class="no">OffsetOfLoader</span><span class="w"> </span><span class="c1">; 跳入Loader！</span>
+</code></pre></div></p>
+<p>下面就是编译运行了，运行结果如下：</p>
+<p><img alt="图 4-1 成功进入 Loader" src="../images/graph-4-1.png" /></p>
+<p>（图 4-1 成功进入 <code>Loader</code>）</p>
+<p>我们成功了！屏幕第一行正中间出现了一个白色的 <code>L</code>！这意味着我们摆脱了引导扇区的束缚，进入了 <code>Loader</code> 的广阔天地！</p>
+<p>在进入保护模式之前，我们最后休整一下。首先用下列代码清屏，它位于 <code>mov sp, BaseOfStack</code> 和 <code>xor ah, ah</code> 之间：</p>
+<p><strong>代码 4-4 清屏（boot.asm）</strong>
+<div class="highlight"><pre><span></span><code><span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="mi">0600</span><span class="no">h</span><span class="w"> </span><span class="c1">; AH=06h：向上滚屏，AL=00h：清空窗口</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">bx</span><span class="p">,</span><span class="w"> </span><span class="mi">0700</span><span class="no">h</span><span class="w"> </span><span class="c1">; 空白区域缺省属性</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">cx</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="c1">; 左上：(0, 0)</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">dx</span><span class="p">,</span><span class="w"> </span><span class="mi">0184</span><span class="no">fh</span><span class="w"> </span><span class="c1">; 右下：(80, 25)</span>
+<span class="w">    </span><span class="nf">int</span><span class="w"> </span><span class="mi">10</span><span class="no">h</span><span class="w"> </span><span class="c1">; 执行</span>
+
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">dh</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span>
+<span class="w">    </span><span class="nf">call</span><span class="w"> </span><span class="no">DispStr</span><span class="w"> </span><span class="c1">; Booting</span>
+</code></pre></div></p>
+<p>下面的代码用于在加载 <code>Loader</code> 之前打印 <code>Ready.</code></p>
+<p><strong>代码 4-5 打印 <code>Ready.</code>（boot.asm）</strong>
+<div class="highlight"><pre><span></span><code><span class="nl">LABEL_FILE_LOADED:</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">dh</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="c1">; 打印第 1 条消息（Ready.）</span>
+<span class="w">    </span><span class="nf">call</span><span class="w"> </span><span class="no">DispStr</span>
+<span class="w">    </span><span class="nf">jmp</span><span class="w"> </span><span class="no">BaseOfLoader</span><span class="p">:</span><span class="no">OffsetOfLoader</span><span class="w"> </span><span class="c1">; 跳入Loader！</span>
+</code></pre></div></p>
+<p>下图是运行结果：</p>
+<p><img alt="图 4-2 整理屏幕" src="../images/graph-4-2.png" /></p>
+<p>（图 4-2 整理屏幕）</p>
+<p>那么最后我们贴一下现在引导扇区的完整代码：</p>
+<p><strong>代码 4-6 完整的引导扇区（boot.asm）</strong>
+<div class="highlight"><pre><span></span><code><span class="w">    </span><span class="nf">org</span><span class="w"> </span><span class="mi">07</span><span class="no">c00h</span><span class="w"> </span><span class="c1">; 告诉编译器程序将装载至0x7c00处</span>
+
+<span class="nf">BaseOfStack</span><span class="w">             </span><span class="no">equ</span><span class="w"> </span><span class="mi">07</span><span class="no">c00h</span><span class="w"> </span><span class="c1">; 栈的基址</span>
+<span class="nf">BaseOfLoader</span><span class="w">            </span><span class="no">equ</span><span class="w"> </span><span class="mi">09000</span><span class="no">h</span><span class="w"> </span><span class="c1">; Loader的基址</span>
+<span class="nf">OffsetOfLoader</span><span class="w">          </span><span class="no">equ</span><span class="w"> </span><span class="mi">0100</span><span class="no">h</span><span class="w">  </span><span class="c1">; Loader的偏移</span>
+<span class="nf">RootDirSectors</span><span class="w">          </span><span class="no">equ</span><span class="w"> </span><span class="mi">14</span><span class="w">     </span><span class="c1">; 根目录大小</span>
+<span class="nf">SectorNoOfRootDirectory</span><span class="w"> </span><span class="no">equ</span><span class="w"> </span><span class="mi">19</span><span class="w">     </span><span class="c1">; 根目录起始扇区</span>
+<span class="nf">SectorNoOfFAT1</span><span class="w">          </span><span class="no">equ</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="c1">; 第一个FAT表的开始扇区</span>
+<span class="nf">DeltaSectorNo</span><span class="w">           </span><span class="no">equ</span><span class="w"> </span><span class="mi">17</span><span class="w"> </span><span class="c1">; 由于第一个簇不用，所以RootDirSectors要-2再加上根目录区首扇区和偏移才能得到真正的地址，故把RootDirSectors-2封装成一个常量（17）</span>
+
+<span class="w">    </span><span class="nf">jmp</span><span class="w"> </span><span class="no">short</span><span class="w"> </span><span class="no">LABEL_START</span>
+<span class="w">    </span><span class="nf">nop</span><span class="w"> </span><span class="c1">; BS_JMPBoot 由于要三个字节而jmp到LABEL_START只有两个字节 所以加一个nop</span>
+
+<span class="w">    </span><span class="nf">BS_OEMName</span><span class="w">     </span><span class="no">db</span><span class="w"> </span><span class="err">&#39;</span><span class="no">tutorial</span><span class="err">&#39;</span><span class="w">    </span><span class="c1">; 固定的8个字节</span>
+<span class="w">    </span><span class="nf">BPB_BytsPerSec</span><span class="w"> </span><span class="no">dw</span><span class="w"> </span><span class="mi">512</span><span class="w">           </span><span class="c1">; 每扇区固定512个字节</span>
+<span class="w">    </span><span class="nf">BPB_SecPerClus</span><span class="w"> </span><span class="no">db</span><span class="w"> </span><span class="mi">1</span><span class="w">             </span><span class="c1">; 每簇固定1个扇区</span>
+<span class="w">    </span><span class="nf">BPB_RsvdSecCnt</span><span class="w"> </span><span class="no">dw</span><span class="w"> </span><span class="mi">1</span><span class="w">             </span><span class="c1">; MBR固定占用1个扇区</span>
+<span class="w">    </span><span class="nf">BPB_NumFATs</span><span class="w">    </span><span class="no">db</span><span class="w"> </span><span class="mi">2</span><span class="w">             </span><span class="c1">; FAT12 文件系统固定2个 FAT 表</span>
+<span class="w">    </span><span class="nf">BPB_RootEntCnt</span><span class="w"> </span><span class="no">dw</span><span class="w"> </span><span class="mi">224</span><span class="w">           </span><span class="c1">; FAT12 文件系统中根目录最大224个文件</span>
+<span class="w">    </span><span class="nf">BPB_TotSec16</span><span class="w">   </span><span class="no">dw</span><span class="w"> </span><span class="mi">2880</span><span class="w">          </span><span class="c1">; 1.44MB磁盘固定2880个扇区</span>
+<span class="w">    </span><span class="nf">BPB_Media</span><span class="w">      </span><span class="no">db</span><span class="w"> </span><span class="mi">0xF0</span><span class="w">          </span><span class="c1">; 介质描述符，固定为0xF0</span>
+<span class="w">    </span><span class="nf">BPB_FATSz16</span><span class="w">    </span><span class="no">dw</span><span class="w"> </span><span class="mi">9</span><span class="w">             </span><span class="c1">; 一个FAT表所占的扇区数，FAT12 文件系统固定为9个扇区</span>
+<span class="w">    </span><span class="nf">BPB_SecPerTrk</span><span class="w">  </span><span class="no">dw</span><span class="w"> </span><span class="mi">18</span><span class="w">            </span><span class="c1">; 每磁道扇区数，固定为18</span>
+<span class="w">    </span><span class="nf">BPB_NumHeads</span><span class="w">   </span><span class="no">dw</span><span class="w"> </span><span class="mi">2</span><span class="w">             </span><span class="c1">; 磁头数，bximage 的输出告诉我们是2个</span>
+<span class="w">    </span><span class="nf">BPB_HiddSec</span><span class="w">    </span><span class="no">dd</span><span class="w"> </span><span class="mi">0</span><span class="w">             </span><span class="c1">; 隐藏扇区数，没有</span>
+<span class="w">    </span><span class="nf">BPB_TotSec32</span><span class="w">   </span><span class="no">dd</span><span class="w"> </span><span class="mi">0</span><span class="w">             </span><span class="c1">; 若之前的 BPB_TotSec16 处没有记录扇区数，则由此记录，如果记录了，这里直接置0即可</span>
+<span class="w">    </span><span class="nf">BS_DrvNum</span><span class="w">      </span><span class="no">db</span><span class="w"> </span><span class="mi">0</span><span class="w">             </span><span class="c1">; int 13h 调用时所读取的驱动器号，由于只挂在一个软盘所以是0 </span>
+<span class="w">    </span><span class="nf">BS_Reserved1</span><span class="w">   </span><span class="no">db</span><span class="w"> </span><span class="mi">0</span><span class="w">             </span><span class="c1">; 未使用，预留</span>
+<span class="w">    </span><span class="nf">BS_BootSig</span><span class="w">     </span><span class="no">db</span><span class="w"> </span><span class="mi">29</span><span class="no">h</span><span class="w">           </span><span class="c1">; 扩展引导标记</span>
+<span class="w">    </span><span class="nf">BS_VolID</span><span class="w">       </span><span class="no">dd</span><span class="w"> </span><span class="mi">0</span><span class="w">             </span><span class="c1">; 卷序列号，由于只挂载一个软盘所以为0</span>
+<span class="w">    </span><span class="nf">BS_VolLab</span><span class="w">      </span><span class="no">db</span><span class="w"> </span><span class="err">&#39;</span><span class="no">OS-tutorial</span><span class="err">&#39;</span><span class="w"> </span><span class="c1">; 卷标，11个字节</span>
+<span class="w">    </span><span class="nf">BS_FileSysType</span><span class="w"> </span><span class="no">db</span><span class="w"> </span><span class="err">&#39;</span><span class="no">FAT12</span><span class="w">   </span><span class="err">&#39;</span><span class="w">    </span><span class="c1">; 由于是 FAT12 文件系统，所以写入 FAT12 后补齐8个字节</span>
+
+<span class="nl">LABEL_START:</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="no">cs</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">ds</span><span class="p">,</span><span class="w"> </span><span class="no">ax</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">es</span><span class="p">,</span><span class="w"> </span><span class="no">ax</span><span class="w"> </span><span class="c1">; 将ds es设置为cs的值（因为此时字符串和变量等存在代码段内）</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">ss</span><span class="p">,</span><span class="w"> </span><span class="no">ax</span><span class="w"> </span><span class="c1">; 将堆栈段也初始化至cs</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">sp</span><span class="p">,</span><span class="w"> </span><span class="no">BaseOfStack</span><span class="w"> </span><span class="c1">; 设置栈顶</span>
+
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="mi">0600</span><span class="no">h</span><span class="w"> </span><span class="c1">; AH=06h：向上滚屏，AL=00h：清空窗口</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">bx</span><span class="p">,</span><span class="w"> </span><span class="mi">0700</span><span class="no">h</span><span class="w"> </span><span class="c1">; 空白区域缺省属性</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">cx</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="c1">; 左上：(0, 0)</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">dx</span><span class="p">,</span><span class="w"> </span><span class="mi">0184</span><span class="no">fh</span><span class="w"> </span><span class="c1">; 右下：(80, 25)</span>
+<span class="w">    </span><span class="nf">int</span><span class="w"> </span><span class="mi">10</span><span class="no">h</span><span class="w"> </span><span class="c1">; 执行</span>
+
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">dh</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span>
+<span class="w">    </span><span class="nf">call</span><span class="w"> </span><span class="no">DispStr</span><span class="w"> </span><span class="c1">; Booting</span>
+
+<span class="w">    </span><span class="nf">xor</span><span class="w"> </span><span class="no">ah</span><span class="p">,</span><span class="w"> </span><span class="no">ah</span><span class="w"> </span><span class="c1">; 复位</span>
+<span class="w">    </span><span class="nf">xor</span><span class="w"> </span><span class="no">dl</span><span class="p">,</span><span class="w"> </span><span class="no">dl</span>
+<span class="w">    </span><span class="nf">int</span><span class="w"> </span><span class="mi">13</span><span class="no">h</span><span class="w"> </span><span class="c1">; 执行软驱复位</span>
+
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">word</span><span class="w"> </span><span class="p">[</span><span class="no">wSectorNo</span><span class="p">],</span><span class="w"> </span><span class="no">SectorNoOfRootDirectory</span><span class="w"> </span><span class="c1">; 开始查找，将当前读到的扇区数记为根目录区的开始扇区（19）</span>
+<span class="nl">LABEL_SEARCH_IN_ROOT_DIR_BEGIN:</span>
+<span class="w">    </span><span class="nf">cmp</span><span class="w"> </span><span class="no">word</span><span class="w"> </span><span class="p">[</span><span class="no">wRootDirSizeForLoop</span><span class="p">],</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="c1">; 将剩余的根目录区扇区数与0比较</span>
+<span class="w">    </span><span class="nf">jz</span><span class="w"> </span><span class="no">LABEL_NO_LOADERBIN</span><span class="w"> </span><span class="c1">; 相等，不存在Loader，进行善后</span>
+<span class="w">    </span><span class="nf">dec</span><span class="w"> </span><span class="no">word</span><span class="w"> </span><span class="p">[</span><span class="no">wRootDirSizeForLoop</span><span class="p">]</span><span class="w"> </span><span class="c1">; 减去一个扇区</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="no">BaseOfLoader</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">es</span><span class="p">,</span><span class="w"> </span><span class="no">ax</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">bx</span><span class="p">,</span><span class="w"> </span><span class="no">OffsetOfLoader</span><span class="w"> </span><span class="c1">; 将es:bx设置为BaseOfLoader:OffsetOfLoader，暂且使用Loader所占的内存空间存放根目录区</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="no">wSectorNo</span><span class="p">]</span><span class="w"> </span><span class="c1">; 起始扇区：当前读到的扇区数（废话）</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">cl</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="c1">; 读取一个扇区</span>
+<span class="w">    </span><span class="nf">call</span><span class="w"> </span><span class="no">ReadSector</span><span class="w"> </span><span class="c1">; 读入</span>
+
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">si</span><span class="p">,</span><span class="w"> </span><span class="no">LoaderFileName</span><span class="w"> </span><span class="c1">; 为比对做准备，此处是将ds:si设为Loader文件名</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">di</span><span class="p">,</span><span class="w"> </span><span class="no">OffsetOfLoader</span><span class="w"> </span><span class="c1">; 为比对做准备，此处是将es:di设为Loader偏移量（即根目录区中的首个文件块）</span>
+<span class="w">    </span><span class="nf">cld</span><span class="w"> </span><span class="c1">; FLAGS.DF=0，即执行lodsb/lodsw/lodsd后，si自动增加</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">dx</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="no">h</span><span class="w"> </span><span class="c1">; 共16个文件块（代表一个扇区，因为一个文件块32字节，16个文件块正好一个扇区）</span>
+<span class="nl">LABEL_SEARCH_FOR_LOADERBIN:</span>
+<span class="w">    </span><span class="nf">cmp</span><span class="w"> </span><span class="no">dx</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="c1">; 将dx与0比较</span>
+<span class="w">    </span><span class="nf">jz</span><span class="w"> </span><span class="no">LABEL_GOTO_NEXT_SECTOR_IN_ROOT_DIR</span><span class="w"> </span><span class="c1">; 继续前进一个扇区</span>
+<span class="w">    </span><span class="nf">dec</span><span class="w"> </span><span class="no">dx</span><span class="w"> </span><span class="c1">; 否则将dx减1</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">cx</span><span class="p">,</span><span class="w"> </span><span class="mi">11</span><span class="w"> </span><span class="c1">; 文件名共11字节</span>
+<span class="nl">LABEL_CMP_FILENAME:</span><span class="w"> </span><span class="c1">; 比对文件名</span>
+<span class="w">    </span><span class="nf">cmp</span><span class="w"> </span><span class="no">cx</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="c1">; 将cx与0比较</span>
+<span class="w">    </span><span class="nf">jz</span><span class="w"> </span><span class="no">LABEL_FILENAME_FOUND</span><span class="w"> </span><span class="c1">; 若相等，说明文件名完全一致，表示找到，进行找到后的处理</span>
+<span class="w">    </span><span class="nf">dec</span><span class="w"> </span><span class="no">cx</span><span class="w"> </span><span class="c1">; cx减1，表示读取1个字符</span>
+<span class="w">    </span><span class="nf">lodsb</span><span class="w"> </span><span class="c1">; 将ds:si的内容置入al，si加1</span>
+<span class="w">    </span><span class="nf">cmp</span><span class="w"> </span><span class="no">al</span><span class="p">,</span><span class="w"> </span><span class="no">byte</span><span class="w"> </span><span class="p">[</span><span class="no">es</span><span class="p">:</span><span class="no">di</span><span class="p">]</span><span class="w"> </span><span class="c1">; 此字符与LOADER  BIN中的当前字符相等吗？</span>
+<span class="w">    </span><span class="nf">jz</span><span class="w"> </span><span class="no">LABEL_GO_ON</span><span class="w"> </span><span class="c1">; 下一个文件名字符</span>
+<span class="w">    </span><span class="nf">jmp</span><span class="w"> </span><span class="no">LABEL_DIFFERENT</span><span class="w"> </span><span class="c1">; 下一个文件块</span>
+<span class="nl">LABEL_GO_ON:</span>
+<span class="w">    </span><span class="nf">inc</span><span class="w"> </span><span class="no">di</span><span class="w"> </span><span class="c1">; di加1，即下一个字符</span>
+<span class="w">    </span><span class="nf">jmp</span><span class="w"> </span><span class="no">LABEL_CMP_FILENAME</span><span class="w"> </span><span class="c1">; 继续比较</span>
+
+<span class="nl">LABEL_DIFFERENT:</span>
+<span class="w">    </span><span class="nf">and</span><span class="w"> </span><span class="no">di</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="no">FFE0h</span><span class="w"> </span><span class="c1">; 指向该文件块开头</span>
+<span class="w">    </span><span class="nf">add</span><span class="w"> </span><span class="no">di</span><span class="p">,</span><span class="w"> </span><span class="mi">20</span><span class="no">h</span><span class="w"> </span><span class="c1">; 跳过32字节，即指向下一个文件块开头</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">si</span><span class="p">,</span><span class="w"> </span><span class="no">LoaderFileName</span><span class="w"> </span><span class="c1">; 重置ds:si</span>
+<span class="w">    </span><span class="nf">jmp</span><span class="w"> </span><span class="no">LABEL_SEARCH_FOR_LOADERBIN</span><span class="w"> </span><span class="c1">; 由于要重新设置一些东西，所以回到查找Loader循环的开头</span>
+
+<span class="nl">LABEL_GOTO_NEXT_SECTOR_IN_ROOT_DIR:</span>
+<span class="w">    </span><span class="nf">add</span><span class="w"> </span><span class="no">word</span><span class="w"> </span><span class="p">[</span><span class="no">wSectorNo</span><span class="p">],</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="c1">; 下一个扇区</span>
+<span class="w">    </span><span class="nf">jmp</span><span class="w"> </span><span class="no">LABEL_SEARCH_IN_ROOT_DIR_BEGIN</span><span class="w"> </span><span class="c1">; 重新执行主循环</span>
+
+<span class="nl">LABEL_NO_LOADERBIN:</span><span class="w"> </span><span class="c1">; 若找不到loader.bin则到这里</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">dh</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span>
+<span class="w">    </span><span class="nf">call</span><span class="w"> </span><span class="no">DispStr</span><span class="c1">; 显示No LOADER</span>
+<span class="w">    </span><span class="nf">jmp</span><span class="w"> </span><span class="no">$</span>
+
+<span class="nl">LABEL_FILENAME_FOUND:</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="no">RootDirSectors</span><span class="w"> </span><span class="c1">; 将ax置为根目录首扇区（19）</span>
+<span class="w">    </span><span class="nf">and</span><span class="w"> </span><span class="no">di</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="no">FFE0h</span><span class="w"> </span><span class="c1">; 将di设置到此文件块开头</span>
+<span class="w">    </span><span class="nf">add</span><span class="w"> </span><span class="no">di</span><span class="p">,</span><span class="w"> </span><span class="mi">01</span><span class="no">Ah</span><span class="w"> </span><span class="c1">; 此时的di指向Loader的FAT号</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">cx</span><span class="p">,</span><span class="w"> </span><span class="no">word</span><span class="w"> </span><span class="p">[</span><span class="no">es</span><span class="p">:</span><span class="no">di</span><span class="p">]</span><span class="w"> </span><span class="c1">; 获得该扇区的FAT号</span>
+<span class="w">    </span><span class="nf">push</span><span class="w"> </span><span class="no">cx</span><span class="w"> </span><span class="c1">; 将FAT号暂存</span>
+<span class="w">    </span><span class="nf">add</span><span class="w"> </span><span class="no">cx</span><span class="p">,</span><span class="w"> </span><span class="no">ax</span><span class="w"> </span><span class="c1">; +根目录首扇区</span>
+<span class="w">    </span><span class="nf">add</span><span class="w"> </span><span class="no">cx</span><span class="p">,</span><span class="w"> </span><span class="no">DeltaSectorNo</span><span class="w"> </span><span class="c1">; 获得真正的地址</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="no">BaseOfLoader</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">es</span><span class="p">,</span><span class="w"> </span><span class="no">ax</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">bx</span><span class="p">,</span><span class="w"> </span><span class="no">OffsetOfLoader</span><span class="w"> </span><span class="c1">; es:bx：读取扇区的缓冲区地址</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="no">cx</span><span class="w"> </span><span class="c1">; ax：起始扇区号</span>
+
+<span class="nl">LABEL_GOON_LOADING_FILE:</span><span class="w"> </span><span class="c1">; 加载文件</span>
+<span class="w">    </span><span class="nf">push</span><span class="w"> </span><span class="no">ax</span>
+<span class="w">    </span><span class="nf">push</span><span class="w"> </span><span class="no">bx</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">ah</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="no">Eh</span><span class="w"> </span><span class="c1">; AH=0Eh：显示单个字符</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">al</span><span class="p">,</span><span class="w"> </span><span class="err">&#39;</span><span class="p">.</span><span class="err">&#39;</span><span class="w"> </span><span class="c1">; AL：字符内容</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">bl</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="no">Fh</span><span class="w"> </span><span class="c1">; BL：显示属性</span>
+<span class="c1">; 还有BH：页码，此处不管</span>
+<span class="w">    </span><span class="nf">int</span><span class="w"> </span><span class="mi">10</span><span class="no">h</span><span class="w"> </span><span class="c1">; 显示此字符</span>
+<span class="w">    </span><span class="nf">pop</span><span class="w"> </span><span class="no">bx</span>
+<span class="w">    </span><span class="nf">pop</span><span class="w"> </span><span class="no">ax</span><span class="w"> </span><span class="c1">; 上面几行的整体作用：在屏幕上打印一个点</span>
+
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">cl</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span>
+<span class="w">    </span><span class="nf">call</span><span class="w"> </span><span class="no">ReadSector</span><span class="w"> </span><span class="c1">; 读取Loader第一个扇区</span>
+<span class="w">    </span><span class="nf">pop</span><span class="w"> </span><span class="no">ax</span><span class="w"> </span><span class="c1">; 加载FAT号</span>
+<span class="w">    </span><span class="nf">call</span><span class="w"> </span><span class="no">GetFATEntry</span><span class="w"> </span><span class="c1">; 加载FAT项</span>
+<span class="w">    </span><span class="nf">cmp</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="no">FFFh</span>
+<span class="w">    </span><span class="nf">jz</span><span class="w"> </span><span class="no">LABEL_FILE_LOADED</span><span class="w"> </span><span class="c1">; 若此项=0FFF，代表文件结束，直接跳入Loader</span>
+<span class="w">    </span><span class="nf">push</span><span class="w"> </span><span class="no">ax</span><span class="w"> </span><span class="c1">; 重新存储FAT号，但此时的FAT号已经是下一个FAT了</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">dx</span><span class="p">,</span><span class="w"> </span><span class="no">RootDirSectors</span>
+<span class="w">    </span><span class="nf">add</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="no">dx</span><span class="w"> </span><span class="c1">; +根目录首扇区</span>
+<span class="w">    </span><span class="nf">add</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="no">DeltaSectorNo</span><span class="w"> </span><span class="c1">; 获取真实地址</span>
+<span class="w">    </span><span class="nf">add</span><span class="w"> </span><span class="no">bx</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="no">BPB_BytsPerSec</span><span class="p">]</span><span class="w"> </span><span class="c1">; 将bx指向下一个扇区开头</span>
+<span class="w">    </span><span class="nf">jmp</span><span class="w"> </span><span class="no">LABEL_GOON_LOADING_FILE</span><span class="w"> </span><span class="c1">; 加载下一个扇区</span>
+
+<span class="nl">LABEL_FILE_LOADED:</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">dh</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="c1">; 打印第 1 条消息（Ready.）</span>
+<span class="w">    </span><span class="nf">call</span><span class="w"> </span><span class="no">DispStr</span>
+<span class="w">    </span><span class="nf">jmp</span><span class="w"> </span><span class="no">BaseOfLoader</span><span class="p">:</span><span class="no">OffsetOfLoader</span><span class="w"> </span><span class="c1">; 跳入Loader！</span>
+
+<span class="nf">wRootDirSizeForLoop</span><span class="w"> </span><span class="no">dw</span><span class="w"> </span><span class="no">RootDirSectors</span><span class="w"> </span><span class="c1">; 查找loader的循环中将会用到</span>
+<span class="nf">wSectorNo</span><span class="w">           </span><span class="no">dw</span><span class="w"> </span><span class="mi">0</span><span class="w">              </span><span class="c1">; 用于保存当前扇区数</span>
+<span class="nf">bOdd</span><span class="w">                </span><span class="no">db</span><span class="w"> </span><span class="mi">0</span><span class="w">              </span><span class="c1">; 这个其实是下一节的东西，不过先放在这也不是不行</span>
+
+<span class="nf">LoaderFileName</span><span class="w">      </span><span class="no">db</span><span class="w"> </span><span class="err">&quot;</span><span class="no">LOADER</span><span class="w">  </span><span class="no">BIN</span><span class="err">&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="c1">; loader的文件名</span>
+
+<span class="nf">MessageLength</span><span class="w">       </span><span class="no">equ</span><span class="w"> </span><span class="mi">9</span><span class="w"> </span><span class="c1">; 下面是三条小消息，此变量用于保存其长度，事实上在内存中它们的排序类似于二维数组</span>
+<span class="nl">BootMessage:</span><span class="w">        </span><span class="nf">db</span><span class="w"> </span><span class="err">&quot;</span><span class="no">Booting</span><span class="w">  </span><span class="err">&quot;</span><span class="w"> </span><span class="c1">; 此处定义之后就可以删除原先定义的BootMessage字符串了</span>
+<span class="nf">Message1</span><span class="w">            </span><span class="no">db</span><span class="w"> </span><span class="err">&quot;</span><span class="no">Ready.</span><span class="w">   </span><span class="err">&quot;</span><span class="w"> </span><span class="c1">; 显示已准备好</span>
+<span class="nf">Message2</span><span class="w">            </span><span class="no">db</span><span class="w"> </span><span class="err">&quot;</span><span class="no">No</span><span class="w"> </span><span class="no">LOADER</span><span class="err">&quot;</span><span class="w"> </span><span class="c1">; 显示没有Loader</span>
+
+<span class="nl">DispStr:</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="no">MessageLength</span>
+<span class="w">    </span><span class="nf">mul</span><span class="w"> </span><span class="no">dh</span><span class="w"> </span><span class="c1">; 将ax乘以dh后，结果仍置入ax（事实上远比此复杂，此处先解释到这里）</span>
+<span class="w">    </span><span class="nf">add</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="no">BootMessage</span><span class="w"> </span><span class="c1">; 找到给定的消息</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">bp</span><span class="p">,</span><span class="w"> </span><span class="no">ax</span><span class="w"> </span><span class="c1">; 先给定偏移</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="no">ds</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">es</span><span class="p">,</span><span class="w"> </span><span class="no">ax</span><span class="w"> </span><span class="c1">; 以防万一，重新设置es</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">cx</span><span class="p">,</span><span class="w"> </span><span class="no">MessageLength</span><span class="w"> </span><span class="c1">; 字符串长度</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="mi">01301</span><span class="no">h</span><span class="w"> </span><span class="c1">; ah=13h, 显示字符的同时光标移位</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">bx</span><span class="p">,</span><span class="w"> </span><span class="mi">0007</span><span class="no">h</span><span class="w"> </span><span class="c1">; 黑底白字</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">dl</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="c1">; 第0行，前面指定的dh不变，所以给定第几条消息就打印到第几行</span>
+<span class="w">    </span><span class="nf">int</span><span class="w"> </span><span class="mi">10</span><span class="no">h</span><span class="w"> </span><span class="c1">; 显示字符</span>
+<span class="w">    </span><span class="nf">ret</span>
+
+<span class="nl">ReadSector:</span>
+<span class="w">    </span><span class="nf">push</span><span class="w"> </span><span class="no">bp</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">bp</span><span class="p">,</span><span class="w"> </span><span class="no">sp</span>
+<span class="w">    </span><span class="nf">sub</span><span class="w"> </span><span class="no">esp</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="c1">; 空出两个字节存放待读扇区数（因为cl在调用BIOS时要用）</span>
+
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">byte</span><span class="w"> </span><span class="p">[</span><span class="no">bp-2</span><span class="p">],</span><span class="w"> </span><span class="no">cl</span>
+<span class="w">    </span><span class="nf">push</span><span class="w"> </span><span class="no">bx</span><span class="w"> </span><span class="c1">; 这里临时用一下bx</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">bl</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="no">BPB_SecPerTrk</span><span class="p">]</span>
+<span class="w">    </span><span class="nf">div</span><span class="w"> </span><span class="no">bl</span><span class="w"> </span><span class="c1">; 执行完后，ax将被除以bl（每磁道扇区数），运算结束后商位于al，余数位于ah，那么al代表的就是总磁道个数（下取整），ah代表的是剩余没除开的扇区数</span>
+<span class="w">    </span><span class="nf">inc</span><span class="w"> </span><span class="no">ah</span><span class="w"> </span><span class="c1">; +1表示起始扇区（这个才和BIOS中的起始扇区一个意思，是读入开始的第一个扇区）</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">cl</span><span class="p">,</span><span class="w"> </span><span class="no">ah</span><span class="w"> </span><span class="c1">; 按照BIOS标准置入cl</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">dh</span><span class="p">,</span><span class="w"> </span><span class="no">al</span><span class="w"> </span><span class="c1">; 用dh暂存位于哪个磁道</span>
+<span class="w">    </span><span class="nf">shr</span><span class="w"> </span><span class="no">al</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="c1">; 每个磁道两个磁头，除以2可得真正的柱面编号</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">ch</span><span class="p">,</span><span class="w"> </span><span class="no">al</span><span class="w"> </span><span class="c1">; 按照BIOS标准置入ch</span>
+<span class="w">    </span><span class="nf">and</span><span class="w"> </span><span class="no">dh</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="c1">; 对磁道模2取余，可得位于哪个磁头，结果已经置入dh</span>
+<span class="w">    </span><span class="nf">pop</span><span class="w"> </span><span class="no">bx</span><span class="w"> </span><span class="c1">; 将bx弹出</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">dl</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="no">BS_DrvNum</span><span class="p">]</span><span class="w"> </span><span class="c1">; 将驱动器号存入dl</span>
+<span class="nl">.GoOnReading:</span><span class="w"> </span><span class="c1">; 万事俱备，只欠读取！</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">ah</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="c1">; 读盘</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">al</span><span class="p">,</span><span class="w"> </span><span class="no">byte</span><span class="w"> </span><span class="p">[</span><span class="no">bp-2</span><span class="p">]</span><span class="w"> </span><span class="c1">; 将之前存入的待读扇区数取出来</span>
+<span class="w">    </span><span class="nf">int</span><span class="w"> </span><span class="mi">13</span><span class="no">h</span><span class="w"> </span><span class="c1">; 执行读盘操作</span>
+<span class="w">    </span><span class="nf">jc</span><span class="w"> </span><span class="no">.GoOnReading</span><span class="w"> </span><span class="c1">; 如发生错误就继续读，否则进入下面的流程</span>
+
+<span class="w">    </span><span class="nf">add</span><span class="w"> </span><span class="no">esp</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span>
+<span class="w">    </span><span class="nf">pop</span><span class="w"> </span><span class="no">bp</span><span class="w"> </span><span class="c1">; 恢复堆栈</span>
+
+<span class="w">    </span><span class="nf">ret</span>
+
+<span class="nl">GetFATEntry:</span>
+<span class="w">    </span><span class="nf">push</span><span class="w"> </span><span class="no">es</span>
+<span class="w">    </span><span class="nf">push</span><span class="w"> </span><span class="no">bx</span>
+<span class="w">    </span><span class="nf">push</span><span class="w"> </span><span class="no">ax</span><span class="w"> </span><span class="c1">; 都会用到，push一下</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="no">BaseOfLoader</span><span class="w"> </span><span class="c1">; 获取Loader的基址</span>
+<span class="w">    </span><span class="nf">sub</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="mi">0100</span><span class="no">h</span><span class="w"> </span><span class="c1">; 留出4KB空间</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">es</span><span class="p">,</span><span class="w"> </span><span class="no">ax</span><span class="w"> </span><span class="c1">; 此处就是缓冲区的基址</span>
+<span class="w">    </span><span class="nf">pop</span><span class="w"> </span><span class="no">ax</span><span class="w"> </span><span class="c1">; ax我们就用不到了</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">byte</span><span class="w"> </span><span class="p">[</span><span class="no">bOdd</span><span class="p">],</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="c1">; 设置bOdd的初值</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">bx</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span>
+<span class="w">    </span><span class="nf">mul</span><span class="w"> </span><span class="no">bx</span><span class="w"> </span><span class="c1">; dx:ax=ax * 3（mul的第二重用法：如有进位，高位将放入dx）</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">bx</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span>
+<span class="w">    </span><span class="nf">div</span><span class="w"> </span><span class="no">bx</span><span class="w"> </span><span class="c1">; dx:ax / 2 -&gt; dx：余数 ax：商</span>
+<span class="c1">; 此处* 1.5的原因是，每个FAT项实际占用的是1.5扇区，所以要把表项 * 1.5</span>
+<span class="w">    </span><span class="nf">cmp</span><span class="w"> </span><span class="no">dx</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="c1">; 没有余数</span>
+<span class="w">    </span><span class="nf">jz</span><span class="w"> </span><span class="no">LABEL_EVEN</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">byte</span><span class="w"> </span><span class="p">[</span><span class="no">bOdd</span><span class="p">],</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="c1">; 那就是奇数了</span>
+<span class="nl">LABEL_EVEN:</span>
+<span class="w">    </span><span class="c1">; 此时ax中应当已经存储了待查找FAT相对于FAT表的偏移，下面我们借此来查找它的扇区号</span>
+<span class="w">    </span><span class="nf">xor</span><span class="w"> </span><span class="no">dx</span><span class="p">,</span><span class="w"> </span><span class="no">dx</span><span class="w"> </span><span class="c1">; dx置0</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">bx</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="no">BPB_BytsPerSec</span><span class="p">]</span>
+<span class="w">    </span><span class="nf">div</span><span class="w"> </span><span class="no">bx</span><span class="w"> </span><span class="c1">; dx:ax / 512 -&gt; ax：商（扇区号）dx：余数（扇区内偏移）</span>
+<span class="w">    </span><span class="nf">push</span><span class="w"> </span><span class="no">dx</span><span class="w"> </span><span class="c1">; 暂存dx，后面要用</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">bx</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="c1">; es:bx：(BaseOfLoader - 4KB):0</span>
+<span class="w">    </span><span class="nf">add</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="no">SectorNoOfFAT1</span><span class="w"> </span><span class="c1">; 实际扇区号</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">cl</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span>
+<span class="w">    </span><span class="nf">call</span><span class="w"> </span><span class="no">ReadSector</span><span class="w"> </span><span class="c1">; 直接读2个扇区，避免出现跨扇区FAT项出现bug</span>
+<span class="w">    </span><span class="nf">pop</span><span class="w"> </span><span class="no">dx</span><span class="w"> </span><span class="c1">; 由于ReadSector未保存dx的值所以这里保存一下</span>
+<span class="w">    </span><span class="nf">add</span><span class="w"> </span><span class="no">bx</span><span class="p">,</span><span class="w"> </span><span class="no">dx</span><span class="w"> </span><span class="c1">; 现在扇区内容在内存中，bx+=dx，即是真正的FAT项</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="no">es</span><span class="p">:</span><span class="no">bx</span><span class="p">]</span><span class="w"> </span><span class="c1">; 读取之</span>
+
+<span class="w">    </span><span class="nf">cmp</span><span class="w"> </span><span class="no">byte</span><span class="w"> </span><span class="p">[</span><span class="no">bOdd</span><span class="p">],</span><span class="w"> </span><span class="mi">1</span>
+<span class="w">    </span><span class="nf">jnz</span><span class="w"> </span><span class="no">LABEL_EVEN_2</span><span class="w"> </span><span class="c1">; 是偶数，则进入LABEL_EVEN_2</span>
+<span class="w">    </span><span class="nf">shr</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="c1">; 高4位为真正的FAT项</span>
+<span class="nl">LABEL_EVEN_2:</span>
+<span class="w">    </span><span class="nf">and</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="no">FFFh</span><span class="w"> </span><span class="c1">; 只保留低4位</span>
+
+<span class="nl">LABEL_GET_FAT_ENRY_OK:</span><span class="w"> </span><span class="c1">; 胜利执行</span>
+<span class="w">    </span><span class="nf">pop</span><span class="w"> </span><span class="no">bx</span>
+<span class="w">    </span><span class="nf">pop</span><span class="w"> </span><span class="no">es</span><span class="w"> </span><span class="c1">; 恢复堆栈</span>
+<span class="w">    </span><span class="nf">ret</span>
+
+<span class="nf">times</span><span class="w"> </span><span class="mi">510</span><span class="w"> </span><span class="p">-</span><span class="w"> </span><span class="p">(</span><span class="no">$</span><span class="w"> </span><span class="p">-</span><span class="w"> </span><span class="no">$$</span><span class="p">)</span><span class="w"> </span><span class="no">db</span><span class="w"> </span><span class="mi">0</span>
+<span class="nf">db</span><span class="w"> </span><span class="mi">0x55</span><span class="p">,</span><span class="w"> </span><span class="mi">0xaa</span><span class="w"> </span><span class="c1">; 确保最后两个字节是0x55AA</span>
+</code></pre></div></p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+        <div class="md-copyright__highlight">
+          本文档采用 <a href="https://creativecommons.org/licenses/by-sa/4.0/">知识共享 署名-相同方式共享 4.0 协议</a> 进行许可。
+        </div>
+        <div class="md-copyright__highlight">
+          Copyright &copy; 2024 Oildum. Powered by mkdocs. Special thanks to copi143 for providing the theme and scripts.
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../../..", "features": ["content.tooltips", "navigation.instant", "navigation.instant.prefetch", "navigation.instant.progress", "navigation.instant.preview", "navigation.sections", "navigation.tracking", "navigation.tabs", "navigation.path", "navigation.indexes", "navigation.top", "toc.follow", "search.suggest", "search.highlight", "search.share"], "search": "../../../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.83f73b43.min.js"></script>
+      
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+      
+    
+  </body>
+</html>

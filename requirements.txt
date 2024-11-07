@@ -1,8 +1,0 @@
-mkdocs
-mkdocs-exclude
-mkdocs-material
-mkdocs-material-extensions
-mkdocs-markdownextradata-plugin
-mkdocs-awesome-pages-plugin
-pymdown-extensions
-mdx_truly_sane_lists

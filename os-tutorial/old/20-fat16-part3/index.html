@@ -1,0 +1,1382 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../19-fat16-part2/">
+      
+      
+        <link rel="next" href="../21-fat16-part4/">
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.44">
+    
+    
+      
+        <title>20 实现FAT16文件系统（4）——上层包装 - Oildum/Atklom's Blog</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.0253249f.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/style.css">
+    
+      <link rel="stylesheet" href="../../../assets/highlight.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../../.." title="Oildum/Atklom&#39;s Blog" class="md-header__button md-logo" aria-label="Oildum/Atklom's Blog" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Oildum/Atklom's Blog
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              20 实现FAT16文件系统（4）——上层包装
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="分享" aria-label="分享" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+    
+  
+  主页
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../" class="md-tabs__link">
+          
+  
+    
+  
+  操作系统教程
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="Oildum/Atklom&#39;s Blog" class="md-nav__button md-logo" aria-label="Oildum/Atklom's Blog" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Oildum/Atklom's Blog
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    主页
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    操作系统教程
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            操作系统教程
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    旧教程
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            旧教程
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../00-beforestart/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    00 开始之前
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../01-first-boot-sector/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    01 第一个引导扇区
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../02-fat12-file-system/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    02 FAT12 文件系统
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../03-find-loader/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    03 查找 Loader
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../04-load-and-jump-into-loader/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    04 加载并跳入 Loader
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../05-read-kernel-and-into-32/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    05 读取内核并进入保护模式
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../06-relocate-and-jump-into-kernel/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    06 重新放置内核并进入内核
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../07-print-impl/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    07 实现我们自己的打印函数
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../08-we-love-makefile/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    08 整理文件
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../09-gdtidt/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    09 重设 GDT、IDT
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../10-irq/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    10 接收外部中断，从时钟开始
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../11-seg-memman/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    11 段式内存管理的实现
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../12-multitasking/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    12 多任务
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../13-kbd-part0/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    13 终于可以打字了——键盘驱动（上）
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../14-kbd-part1/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    14 终于可以打字了——键盘驱动（下）
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../15-syscall/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    15 系统调用——应用程序与系统的交互之门
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../16-shell-d-and-i/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    16 shell的设计与实现
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../17-fat16-part0/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    17 实现FAT16文件系统（1）——基础设施建设：硬盘驱动、RTC
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../18-fat16-part1/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    18 实现FAT16文件系统（2）——格式化、打开文件、创建文件
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../19-fat16-part2/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    19 实现FAT16文件系统（3）——读取文件、写入文件、删除文件
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    20 实现FAT16文件系统（4）——上层包装
+  </span>
+  
+
+      </a>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../21-fat16-part4/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    21 FAT16 文件系统实战——抛弃软盘，从硬盘启动
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../22-first-app/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    22 第一个应用程序
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../23-c-app-part0/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    23 C语言应用程序（上）
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../24-c-app-part1/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    24 C语言应用程序（下）
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../new/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    新教程
+  </span>
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            新教程
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  <h1>20 实现FAT16文件系统（4）——上层包装</h1>
+
+<p>本节是实现 FAT16 的最后一个小节，我们将实现一套可供用户使用的系统调用，包括 <code>open</code>、<code>read</code>、<code>write</code>、<code>unlink</code> 以及 <code>lseek</code>。有了这五个函数，我们就可以任意地进行文件读写以及对文件进行删除和创建。</p>
+<p>本节代码极大程度上参照了《操作系统真象还原》以及 <a href="http://github.com/min0911Y/Plant-OS">PlantOS</a> 的代码，因此在细节上可能有所欠缺，请见谅。</p>
+<p>首先，如同多任务一样，直接把 <code>fileinfo_t</code> 当作一个文件的底层抽象是相当不合适的：由于 <code>fileinfo_t</code> 与硬件强相关，所以后期将难以扩展。</p>
+<p>所以，最终，经过包装，我们创建了一个 <code>file_t</code> 结构体，用于表示一个抽象的文件的概念。</p>
+<p><strong>代码 20-1 文件的底层抽象（include/file.h）</strong>
+<div class="highlight"><pre><span></span><code><span class="k">typedef</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="n">FILE_TYPE</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">FT_USABLE</span><span class="p">,</span>
+<span class="w">    </span><span class="n">FT_REGULAR</span><span class="p">,</span>
+<span class="w">    </span><span class="n">FT_UNKNOWN</span>
+<span class="p">}</span><span class="w"> </span><span class="n">file_type_t</span><span class="p">;</span>
+
+<span class="k">typedef</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="n">oflags</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">O_RDONLY</span><span class="p">,</span>
+<span class="w">    </span><span class="n">O_WRONLY</span><span class="p">,</span>
+<span class="w">    </span><span class="n">O_RDWR</span><span class="p">,</span>
+<span class="w">    </span><span class="n">O_CREAT</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span>
+<span class="p">}</span><span class="w"> </span><span class="n">oflags_t</span><span class="p">;</span>
+
+<span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">FILE_STRUCT</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">handle</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">buffer</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">pos</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">size</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">open_cnt</span><span class="p">;</span>
+<span class="w">    </span><span class="n">file_type_t</span><span class="w"> </span><span class="n">type</span><span class="p">;</span>
+<span class="w">    </span><span class="n">oflags_t</span><span class="w"> </span><span class="n">flags</span><span class="p">;</span>
+<span class="p">}</span><span class="w"> </span><span class="n">file_t</span><span class="p">;</span>
+</code></pre></div></p>
+<p>由于完全不打算实现目录，所以在 <code>file_type_t</code> 里，只有 <code>FT_REGULAR</code> 一种正常值，剩下两个一个用于判断文件是否已被占用，另一个则没什么用。</p>
+<p>至于 <code>O_RDONLY</code> 这些，则是一个简单的判断读写的小机制，这样可以创建只读以及只写的文件，虽然这没什么用吧。</p>
+<p>再往下的 <code>file_t</code> 可以说是十分灵活，我们甚至没有限制 <code>handle</code> 必须是 <code>fileinfo_t</code>，你往里面塞什么牛鬼蛇神都行，只要你能在后面的 <code>read</code> 这些地方圆回来。</p>
+<p>这个 <code>buffer</code> 具体的用处到后面 <code>read</code> 和 <code>write</code> 时再讲。</p>
+<p>下面的 <code>pos</code> 则是代表文件的读写位置，<code>lseek</code> 移动的就是它。</p>
+<p>最后的 <code>open_cnt</code> 暂时没用，大概到了下一节或者最后一节才会有用。</p>
+<p>下面是一些小小的改动：实际上，打开文件的操作是由任务执行的，所以至少在任务的层面，应该对文件给予一些支持。</p>
+<p><strong>代码 20-2 新版 <code>task_t</code> 结构体（include/mtask.h）</strong>
+<div class="highlight"><pre><span></span><code><span class="cp">#define MAX_FILE_OPEN_PER_TASK 32</span>
+
+<span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">TASK</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">sel</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int32_t</span><span class="w"> </span><span class="n">flags</span><span class="p">;</span>
+<span class="w">    </span><span class="n">exit_retval_t</span><span class="w"> </span><span class="n">my_retval</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">fd_table</span><span class="p">[</span><span class="n">MAX_FILE_OPEN_PER_TASK</span><span class="p">];</span><span class="w"> </span><span class="c1">// here</span>
+<span class="w">    </span><span class="n">tss32_t</span><span class="w"> </span><span class="n">tss</span><span class="p">;</span>
+<span class="p">}</span><span class="w"> </span><span class="n">task_t</span><span class="p">;</span>
+</code></pre></div></p>
+<p>与 Linux 0.01 不同的是，这里并未直接存储 <code>file_t</code>，而是存储了一个 <code>int</code>，它代表对应的 <code>file_t</code> 在一个文件表中的索引。这么做的目的是节省空间，以及可能带来的更高氨醛性——毕竟理论上可以顺着 <code>malloc</code>（虽然还没实现）找到 <code>task_t</code> 来给文件一锅端了（确信）。</p>
+<p>这个数组需要在 <code>task_alloc</code> 时进行初始化：</p>
+<p><strong>代码 20-3 初始化任务中的文件描述符表（kernel/mtask.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="w">            </span><span class="n">task</span><span class="o">-&gt;</span><span class="n">fd_table</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="c1">// 标准输入，占位</span>
+<span class="w">            </span><span class="n">task</span><span class="o">-&gt;</span><span class="n">fd_table</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="c1">// 标准输出，占位</span>
+<span class="w">            </span><span class="n">task</span><span class="o">-&gt;</span><span class="n">fd_table</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w"> </span><span class="c1">// 标准错误，占位</span>
+<span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">MAX_FILE_OPEN_PER_TASK</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">task</span><span class="o">-&gt;</span><span class="n">fd_table</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span><span class="w"> </span><span class="c1">// 其余文件均可用</span>
+<span class="w">            </span><span class="p">}</span>
+</code></pre></div></p>
+<p>然后，在 <code>fs/file.c</code> 中，我们来添加这个文件表：</p>
+<p><strong>代码 20-4 创建文件表（fs/file.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;file.h&quot;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;mtask.h&quot;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;memory.h&quot;</span>
+
+<span class="k">static</span><span class="w"> </span><span class="n">file_t</span><span class="w"> </span><span class="n">file_table</span><span class="p">[</span><span class="n">MAX_FILE_NUM</span><span class="p">];</span>
+</code></pre></div></p>
+<p>然后我们需要提供一个/一组把 <code>fileinfo_t</code> 转换为 <code>file_t</code> 并安装到当前任务当中的函数，这由下面的 <code>install_to_global</code> 和 <code>install_to_local</code> 实现：</p>
+<p><strong>代码 20-5 将 <code>fileinfo_t</code> 安装到任务（fs/file.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="nf">install_to_global</span><span class="p">(</span><span class="n">fileinfo_t</span><span class="w"> </span><span class="n">finfo</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">MAX_FILE_NUM</span><span class="p">;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">MAX_FILE_NUM</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">file_table</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">type</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">FT_USABLE</span><span class="p">)</span><span class="w"> </span><span class="k">break</span><span class="p">;</span><span class="w"> </span><span class="c1">// 当前文件空闲，则占用</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">MAX_FILE_NUM</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span><span class="w"> </span><span class="c1">// 没有文件空闲，则退出</span>
+<span class="w">    </span><span class="n">fileinfo_t</span><span class="w"> </span><span class="o">*</span><span class="n">safer_finfo</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">fileinfo_t</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">kmalloc</span><span class="p">(</span><span class="k">sizeof</span><span class="p">(</span><span class="n">fileinfo_t</span><span class="p">));</span><span class="w"> </span><span class="c1">// 分配一个finfo指针，准备挂到handle上</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">safer_finfo</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span>
+<span class="w">    </span><span class="o">*</span><span class="n">safer_finfo</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">finfo</span><span class="p">;</span><span class="w"> </span><span class="c1">// 装入</span>
+<span class="w">    </span><span class="n">file_table</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">handle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">safer_finfo</span><span class="p">;</span><span class="w"> </span><span class="c1">// 这就是其内部的handle</span>
+<span class="w">    </span><span class="n">file_table</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">FT_REGULAR</span><span class="p">;</span><span class="w"> </span><span class="c1">// 类型为正常文件</span>
+<span class="w">    </span><span class="n">file_table</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">pos</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="c1">// 由于刚刚注册，pos设为0</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">i</span><span class="p">;</span><span class="w"> </span><span class="c1">// 返回其在文件表内的索引</span>
+<span class="p">}</span>
+
+<span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="nf">install_to_local</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">global_fd</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">task_t</span><span class="w"> </span><span class="o">*</span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task_now</span><span class="p">();</span><span class="w"> </span><span class="c1">// 获取当前任务</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="p">;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">MAX_FILE_OPEN_PER_TASK</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// fd 0 1 2分别代表标准输入 标准输出 标准错误，所以从3开始找起</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">task</span><span class="o">-&gt;</span><span class="n">fd_table</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">-1</span><span class="p">)</span><span class="w"> </span><span class="k">break</span><span class="p">;</span><span class="w"> </span><span class="c1">// 这里还空着，直接用</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">MAX_FILE_OPEN_PER_TASK</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span><span class="w"> </span><span class="c1">// 到达任务可打开的文件上限，返回-1</span>
+<span class="w">    </span><span class="n">task</span><span class="o">-&gt;</span><span class="n">fd_table</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">global_fd</span><span class="p">;</span><span class="w"> </span><span class="c1">// 将文件表索引安装到任务的文件描述符表</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">i</span><span class="p">;</span><span class="w"> </span><span class="c1">// 返回索引，这就是对应的文件描述符了</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>有了这两个函数，实现打开文件和创建文件就畅通无阻了。在 Linux 系统中，这两个功能被整合进 <code>open</code> 这一个函数中，这是一个我也说不上好不好的设计，总之我决定模仿。</p>
+<p><strong>代码 20-6 <code>open</code>：打开文件、创建文件（fs/file.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="kt">int</span><span class="w"> </span><span class="nf">sys_open</span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">filename</span><span class="p">,</span><span class="w"> </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">flags</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">fileinfo_t</span><span class="w"> </span><span class="n">finfo</span><span class="p">;</span><span class="w"> </span><span class="c1">// 准备接收打开的文件</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">flags</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="n">O_CREAT</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// flags中含有O_CREAT，则需要创建文件</span>
+<span class="w">        </span><span class="kt">int</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fat16_create_file</span><span class="p">(</span><span class="o">&amp;</span><span class="n">finfo</span><span class="p">,</span><span class="w"> </span><span class="n">filename</span><span class="p">);</span><span class="w"> </span><span class="c1">// 调用创建文件的函数</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">status</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">-1</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">status</span><span class="p">;</span><span class="w"> </span><span class="c1">// 创建失败则直接不管</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kt">int</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fat16_open_file</span><span class="p">(</span><span class="o">&amp;</span><span class="n">finfo</span><span class="p">,</span><span class="w"> </span><span class="n">filename</span><span class="p">);</span><span class="w"> </span><span class="c1">// 调用打开文件的函数</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">status</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">-1</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">status</span><span class="p">;</span><span class="w"> </span><span class="c1">// 打开失败则直接不管</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">global_fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">install_to_global</span><span class="p">(</span><span class="n">finfo</span><span class="p">);</span><span class="w"> </span><span class="c1">// 先安装到全局文件表</span>
+<span class="w">    </span><span class="n">file_table</span><span class="p">[</span><span class="n">global_fd</span><span class="p">].</span><span class="n">open_cnt</span><span class="o">++</span><span class="p">;</span><span class="w"> </span><span class="c1">// open个数+1，没什么用</span>
+<span class="w">    </span><span class="n">file_table</span><span class="p">[</span><span class="n">global_fd</span><span class="p">].</span><span class="n">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">finfo</span><span class="p">.</span><span class="n">size</span><span class="p">;</span><span class="w"> </span><span class="c1">// 设置文件大小</span>
+<span class="w">    </span><span class="n">file_table</span><span class="p">[</span><span class="n">global_fd</span><span class="p">].</span><span class="n">flags</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">flags</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="p">(</span><span class="o">~</span><span class="n">O_CREAT</span><span class="p">);</span><span class="w"> </span><span class="c1">// flags中剔除O_CREAT</span>
+<span class="w">    </span><span class="n">file_table</span><span class="p">[</span><span class="n">global_fd</span><span class="p">].</span><span class="n">buffer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">kmalloc</span><span class="p">(</span><span class="n">finfo</span><span class="p">.</span><span class="n">size</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span><span class="w"> </span><span class="c1">// 分配一个缓冲区</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">finfo</span><span class="p">.</span><span class="n">size</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// 如果有内容</span>
+<span class="w">        </span><span class="kt">int</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fat16_read_file</span><span class="p">(</span><span class="o">&amp;</span><span class="n">finfo</span><span class="p">,</span><span class="w"> </span><span class="n">file_table</span><span class="p">[</span><span class="n">global_fd</span><span class="p">].</span><span class="n">buffer</span><span class="p">);</span><span class="w"> </span><span class="c1">// 则直接读到缓冲区里来</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">status</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">-1</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// 如果读不进缓冲区，那就只好这样了</span>
+<span class="w">            </span><span class="n">kfree</span><span class="p">(</span><span class="n">file_table</span><span class="p">[</span><span class="n">global_fd</span><span class="p">].</span><span class="n">handle</span><span class="p">);</span><span class="w"> </span><span class="c1">// 释放占有的资源</span>
+<span class="w">            </span><span class="n">kfree</span><span class="p">(</span><span class="n">file_table</span><span class="p">[</span><span class="n">global_fd</span><span class="p">].</span><span class="n">buffer</span><span class="p">);</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">status</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">install_to_local</span><span class="p">(</span><span class="n">global_fd</span><span class="p">);</span><span class="w"> </span><span class="c1">// 最后安装到任务里</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>这个缓冲区很快就会在下面的 <code>read</code> 和 <code>write</code> 中用到，由于这两者操作逻辑较为类似，合并到同一个代码块里来：</p>
+<p><strong>代码 20-7 <code>read</code>、<code>write</code>：读写文件（fs/fat16.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="kt">int</span><span class="w"> </span><span class="nf">sys_write</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">msg</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">len</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">fd</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span><span class="w"> </span><span class="c1">// 是无效fd，返回</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">fd</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// 往标准输出或标准错误中输出</span>
+<span class="w">        </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">msg</span><span class="p">;</span><span class="w"> </span><span class="c1">// 转换为char *</span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">len</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="n">monitor_put</span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span><span class="w"> </span><span class="c1">// 直接用monitor_put逐字符输出</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">len</span><span class="p">;</span><span class="w"> </span><span class="c1">// 一切正常</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">task_t</span><span class="w"> </span><span class="o">*</span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task_now</span><span class="p">();</span><span class="w"> </span><span class="c1">// 获取当前任务</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">global_fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="o">-&gt;</span><span class="n">fd_table</span><span class="p">[</span><span class="n">fd</span><span class="p">];</span><span class="w"> </span><span class="c1">// 获取文件表中索引</span>
+<span class="w">    </span><span class="n">file_t</span><span class="w"> </span><span class="o">*</span><span class="n">cfile</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">file_table</span><span class="p">[</span><span class="n">global_fd</span><span class="p">];</span><span class="w"> </span><span class="c1">// 获取文件表中的文件指针</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">cfile</span><span class="o">-&gt;</span><span class="n">flags</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">O_RDONLY</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span><span class="w"> </span><span class="c1">// 只读，不可写，返回</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">len</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// 对于每一个字节</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">cfile</span><span class="o">-&gt;</span><span class="n">pos</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">cfile</span><span class="o">-&gt;</span><span class="n">size</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// 如果超出了原本的范围</span>
+<span class="w">            </span><span class="n">cfile</span><span class="o">-&gt;</span><span class="n">size</span><span class="o">++</span><span class="p">;</span><span class="w"> </span><span class="c1">// 大小+1</span>
+<span class="w">            </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">new_buffer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">krealloc</span><span class="p">(</span><span class="n">cfile</span><span class="o">-&gt;</span><span class="n">buffer</span><span class="p">,</span><span class="w"> </span><span class="n">cfile</span><span class="o">-&gt;</span><span class="n">size</span><span class="p">);</span><span class="w"> </span><span class="c1">// 使用krealloc扩容，增长缓冲区大小</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">new_buffer</span><span class="p">)</span><span class="w"> </span><span class="n">cfile</span><span class="o">-&gt;</span><span class="n">buffer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new_buffer</span><span class="p">;</span><span class="w"> </span><span class="c1">// 如果缓冲区分配成功，那么这里就是新的缓冲区</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">buf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">cfile</span><span class="o">-&gt;</span><span class="n">buffer</span><span class="p">;</span><span class="w"> </span><span class="c1">// 文件的缓冲区，相当于文件的当前内容了</span>
+<span class="w">        </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">content</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">msg</span><span class="p">;</span><span class="w"> </span><span class="c1">// 要写入的内容</span>
+<span class="w">        </span><span class="n">buf</span><span class="p">[</span><span class="n">cfile</span><span class="o">-&gt;</span><span class="n">pos</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">content</span><span class="p">[</span><span class="n">i</span><span class="p">];</span><span class="w"> </span><span class="c1">// 向读写指针处写入当前内容</span>
+<span class="w">        </span><span class="n">cfile</span><span class="o">-&gt;</span><span class="n">pos</span><span class="o">++</span><span class="p">;</span><span class="w"> </span><span class="c1">// 文件指针后移</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fat16_write_file</span><span class="p">(</span><span class="n">cfile</span><span class="o">-&gt;</span><span class="n">handle</span><span class="p">,</span><span class="w"> </span><span class="n">cfile</span><span class="o">-&gt;</span><span class="n">buffer</span><span class="p">,</span><span class="w"> </span><span class="n">cfile</span><span class="o">-&gt;</span><span class="n">size</span><span class="p">);</span><span class="w"> </span><span class="c1">// 写入完毕，立刻更新到硬盘</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">status</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">-1</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">status</span><span class="p">;</span><span class="w"> </span><span class="c1">// 写入失败，返回</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">len</span><span class="p">;</span><span class="w"> </span><span class="c1">// 否则，返回实际写入的长度len</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">sys_read</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">count</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">ret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">fd</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">ret</span><span class="p">;</span><span class="w"> </span><span class="c1">// 从标准输入/标准错误中读或是fd非法都是不允许的</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">fd</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// 如果是标准输入</span>
+<span class="w">        </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">buffer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">buf</span><span class="p">;</span><span class="w"> </span><span class="c1">// 先转成char *</span>
+<span class="w">        </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">bytes_read</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="c1">// 读了多少个</span>
+<span class="w">        </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">bytes_read</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">count</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// 没达到count个</span>
+<span class="w">            </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">fifo_status</span><span class="p">(</span><span class="o">&amp;</span><span class="n">decoded_key</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w"> </span><span class="c1">// 只要没有新的键我就不读进来</span>
+<span class="w">            </span><span class="o">*</span><span class="n">buffer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fifo_get</span><span class="p">(</span><span class="o">&amp;</span><span class="n">decoded_key</span><span class="p">);</span><span class="w"> </span><span class="c1">// 获取新的键</span>
+<span class="w">            </span><span class="n">bytes_read</span><span class="o">++</span><span class="p">;</span>
+<span class="w">            </span><span class="n">buffer</span><span class="o">++</span><span class="p">;</span><span class="w"> </span><span class="c1">// buffer指向下一个</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="n">ret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">bytes_read</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="mi">-1</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="n">bytes_read</span><span class="p">);</span><span class="w"> </span><span class="c1">// 如果啥也没读着就-1，否则就正常返回就行了</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">ret</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">task_t</span><span class="w"> </span><span class="o">*</span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task_now</span><span class="p">();</span><span class="w"> </span><span class="c1">// 获取当前任务</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">global_fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="o">-&gt;</span><span class="n">fd_table</span><span class="p">[</span><span class="n">fd</span><span class="p">];</span><span class="w"> </span><span class="c1">// 获取fd对应的文件表索引</span>
+<span class="w">    </span><span class="n">file_t</span><span class="w"> </span><span class="o">*</span><span class="n">cfile</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">file_table</span><span class="p">[</span><span class="n">global_fd</span><span class="p">];</span><span class="w"> </span><span class="c1">// 获取文件表中对应文件</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">cfile</span><span class="o">-&gt;</span><span class="n">flags</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">O_WRONLY</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span><span class="w"> </span><span class="c1">// 只写，不可读，返回-1</span>
+<span class="w">    </span><span class="n">ret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="c1">// 记录到底读了多少个字节</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">count</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">cfile</span><span class="o">-&gt;</span><span class="n">pos</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">cfile</span><span class="o">-&gt;</span><span class="n">size</span><span class="p">)</span><span class="w"> </span><span class="k">break</span><span class="p">;</span><span class="w"> </span><span class="c1">// 如果已经到达末尾，返回</span>
+<span class="w">        </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">filebuf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">cfile</span><span class="o">-&gt;</span><span class="n">buffer</span><span class="p">;</span><span class="w"> </span><span class="c1">// 文件缓冲区</span>
+<span class="w">        </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">retbuf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">buf</span><span class="p">;</span><span class="w"> </span><span class="c1">// 接收缓冲区</span>
+<span class="w">        </span><span class="n">retbuf</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">filebuf</span><span class="p">[</span><span class="n">cfile</span><span class="o">-&gt;</span><span class="n">pos</span><span class="p">];</span><span class="w"> </span><span class="c1">// 逐字节拷贝内容</span>
+<span class="w">        </span><span class="n">cfile</span><span class="o">-&gt;</span><span class="n">pos</span><span class="o">++</span><span class="p">;</span><span class="w"> </span><span class="c1">// 读写指针后移</span>
+<span class="w">        </span><span class="n">ret</span><span class="o">++</span><span class="p">;</span><span class="w"> </span><span class="c1">// 读取字节数+1</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">ret</span><span class="p">;</span><span class="w"> </span><span class="c1">// 返回读取字节数</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>这里从 <code>sys_write</code> 的实现中就可以知道 <code>buffer</code> 的作用了：在前面读写文件时，我们只实现了覆盖整个文件，想要对文件的特定位置进行修改，只能全部读进来，在软件层面修改后再全部写回去。而且，这样的实现还可以加快 <code>sys_read</code> 的速度，也算是一种奇妙的优化吧。</p>
+<p>同时，改完这里以后，原先 <code>kernel/syscall.c</code> 中的 <code>sys_read</code> 和 <code>sys_write</code> 就可以删除了。</p>
+<p>扩容用的 <code>krealloc</code> 写在了 <code>kernel/memory.c</code> 中：</p>
+<p><strong>代码 20-8 <code>krealloc</code>（kernel/memory.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="nf">krealloc</span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">buffer</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">size</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">NULL</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">buffer</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">kmalloc</span><span class="p">(</span><span class="n">size</span><span class="p">);</span><span class="w"> </span><span class="c1">// buffer为NULL，则realloc相当于malloc</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">size</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// size为NULL，则realloc相当于free</span>
+<span class="w">        </span><span class="n">kfree</span><span class="p">(</span><span class="n">buffer</span><span class="p">);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">NULL</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="c1">// 否则实现扩容</span>
+<span class="w">    </span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">kmalloc</span><span class="p">(</span><span class="n">size</span><span class="p">);</span><span class="w"> </span><span class="c1">// 分配新的缓冲区</span>
+<span class="w">    </span><span class="n">memcpy</span><span class="p">(</span><span class="n">res</span><span class="p">,</span><span class="w"> </span><span class="n">buffer</span><span class="p">,</span><span class="w"> </span><span class="n">size</span><span class="p">);</span><span class="w"> </span><span class="c1">// 将原缓冲区内容复制过去</span>
+<span class="w">    </span><span class="n">kfree</span><span class="p">(</span><span class="n">buffer</span><span class="p">);</span><span class="w"> </span><span class="c1">// 释放原缓冲区</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">res</span><span class="p">;</span><span class="w"> </span><span class="c1">// 返回新缓冲区</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>接下来是关闭文件用的 <code>sys_close</code>，基本上就是对文件使用资源的释放。</p>
+<p><strong>代码 20-9 <code>close</code>：关闭文件（fs/file.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="kt">int</span><span class="w"> </span><span class="nf">sys_close</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">fd</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">ret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span><span class="w"> </span><span class="c1">// 返回值</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">fd</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// 的确是被打开的文件</span>
+<span class="w">        </span><span class="n">task_t</span><span class="w"> </span><span class="o">*</span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task_now</span><span class="p">();</span><span class="w"> </span><span class="c1">// 获取当前任务</span>
+<span class="w">        </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">global_fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="o">-&gt;</span><span class="n">fd_table</span><span class="p">[</span><span class="n">fd</span><span class="p">];</span><span class="w"> </span><span class="c1">// 获取对应文件表索引</span>
+<span class="w">        </span><span class="n">task</span><span class="o">-&gt;</span><span class="n">fd_table</span><span class="p">[</span><span class="n">fd</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span><span class="w"> </span><span class="c1">// 释放文件描述符</span>
+<span class="w">        </span><span class="n">file_t</span><span class="w"> </span><span class="o">*</span><span class="n">cfile</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">file_table</span><span class="p">[</span><span class="n">global_fd</span><span class="p">];</span><span class="w"> </span><span class="c1">// 获取对应文件</span>
+<span class="w">        </span><span class="n">kfree</span><span class="p">(</span><span class="n">cfile</span><span class="o">-&gt;</span><span class="n">buffer</span><span class="p">);</span><span class="w"> </span><span class="c1">// 释放缓冲区</span>
+<span class="w">        </span><span class="n">kfree</span><span class="p">(</span><span class="n">cfile</span><span class="o">-&gt;</span><span class="n">handle</span><span class="p">);</span><span class="w"> </span><span class="c1">// install_to_global中使用kmalloc分配fileinfo指针</span>
+<span class="w">        </span><span class="n">cfile</span><span class="o">-&gt;</span><span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">FT_USABLE</span><span class="p">;</span><span class="w"> </span><span class="c1">// 设置type为可用</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="c1">// 关闭完成</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">ret</span><span class="p">;</span><span class="w"> </span><span class="c1">// 否则返回-1</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>移动读写指针用的 <code>sys_lseek</code> 纯属软件操作，<code>sys_unlink</code> 则只是 <code>fat16_delete_file</code> 套皮，这里一并放上来。</p>
+<p><strong>代码 20-10 <code>lseek</code>、<code>unlink</code>：最后一个部分（fs/file.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="kt">int</span><span class="w"> </span><span class="nf">sys_lseek</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">offset</span><span class="p">,</span><span class="w"> </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">whence</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">fd</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span><span class="w"> </span><span class="c1">// 不是被打开的文件，返回</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">whence</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">whence</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">3</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span><span class="w"> </span><span class="c1">// whence只能为123，分别对应SET、CUR、END，返回</span>
+<span class="w">    </span><span class="n">task_t</span><span class="w"> </span><span class="o">*</span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task_now</span><span class="p">();</span><span class="w"> </span><span class="c1">// 获取当前任务</span>
+<span class="w">    </span><span class="n">file_t</span><span class="w"> </span><span class="o">*</span><span class="n">cfile</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">file_table</span><span class="p">[</span><span class="n">task</span><span class="o">-&gt;</span><span class="n">fd_table</span><span class="p">[</span><span class="n">fd</span><span class="p">]];</span><span class="w"> </span><span class="c1">// 获取fd对应的文件</span>
+<span class="w">    </span><span class="n">fileinfo_t</span><span class="w"> </span><span class="o">*</span><span class="n">fhandle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">fileinfo_t</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">cfile</span><span class="o">-&gt;</span><span class="n">handle</span><span class="p">;</span><span class="w"> </span><span class="c1">// 文件实际上对应的fileinfo</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fhandle</span><span class="o">-&gt;</span><span class="n">size</span><span class="p">;</span><span class="w"> </span><span class="c1">// 获取大小，总归是有用的</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">new_pos</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="c1">// 新的文件位置</span>
+<span class="w">    </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">whence</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">case</span><span class="w"> </span><span class="no">SEEK_SET</span><span class="p">:</span><span class="w"> </span><span class="c1">// SEEK_SET就是纯设置</span>
+<span class="w">            </span><span class="n">new_pos</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">offset</span><span class="p">;</span><span class="w"> </span><span class="c1">// 直接设置</span>
+<span class="w">            </span><span class="k">break</span><span class="p">;</span>
+<span class="w">        </span><span class="k">case</span><span class="w"> </span><span class="no">SEEK_CUR</span><span class="p">:</span><span class="w"> </span><span class="c1">// 从当前位置算起移动offset位置</span>
+<span class="w">            </span><span class="n">new_pos</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cfile</span><span class="o">-&gt;</span><span class="n">pos</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">offset</span><span class="p">;</span><span class="w"> </span><span class="c1">// 用当前pos加上offset</span>
+<span class="w">            </span><span class="k">break</span><span class="p">;</span>
+<span class="w">        </span><span class="k">case</span><span class="w"> </span><span class="no">SEEK_END</span><span class="p">:</span><span class="w"> </span><span class="c1">// 从结束位置算起移动offset位置</span>
+<span class="w">            </span><span class="n">new_pos</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">offset</span><span class="p">;</span><span class="w"> </span><span class="c1">// 用大小加上offset</span>
+<span class="w">            </span><span class="k">break</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">new_pos</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">new_pos</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span><span class="w"> </span><span class="c1">// 如果新的位置超出文件，返回-1</span>
+<span class="w">    </span><span class="n">cfile</span><span class="o">-&gt;</span><span class="n">pos</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new_pos</span><span class="p">;</span><span class="w"> </span><span class="c1">// 设置新位置</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">new_pos</span><span class="p">;</span><span class="w"> </span><span class="c1">// 返回新位置</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">sys_unlink</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">filename</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">fat16_delete_file</span><span class="p">((</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">filename</span><span class="p">);</span><span class="w"> </span><span class="c1">// 直接套皮，不多说</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>好，那么到此为止，历时四节，我们的 FAT16 文件系统实现的征程到此结束！鼓掌！</p>
+<p>或许有人会觉得：这看上去也不难嘛……那不妨自己查询资料写一个试试哦（</p>
+<p>再往下三节，我们来实现应用程序的执行，彻底结束这个破烂不堪的操作系统教程。</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+        <div class="md-copyright__highlight">
+          本文档采用 <a href="https://creativecommons.org/licenses/by-sa/4.0/">知识共享 署名-相同方式共享 4.0 协议</a> 进行许可。
+        </div>
+        <div class="md-copyright__highlight">
+          Copyright &copy; 2024 Oildum. Powered by mkdocs. Special thanks to copi143 for providing the theme and scripts.
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../../..", "features": ["content.tooltips", "navigation.instant", "navigation.instant.prefetch", "navigation.instant.progress", "navigation.instant.preview", "navigation.sections", "navigation.tracking", "navigation.tabs", "navigation.path", "navigation.indexes", "navigation.top", "toc.follow", "search.suggest", "search.highlight", "search.share"], "search": "../../../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.83f73b43.min.js"></script>
+      
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,1550 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../17-fat16-part0/">
+      
+      
+        <link rel="next" href="../19-fat16-part2/">
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.44">
+    
+    
+      
+        <title>18 实现FAT16文件系统（2）——格式化、打开文件、创建文件 - Oildum/Atklom's Blog</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.0253249f.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/style.css">
+    
+      <link rel="stylesheet" href="../../../assets/highlight.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../../.." title="Oildum/Atklom&#39;s Blog" class="md-header__button md-logo" aria-label="Oildum/Atklom's Blog" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Oildum/Atklom's Blog
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              18 实现FAT16文件系统（2）——格式化、打开文件、创建文件
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="分享" aria-label="分享" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+    
+  
+  主页
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../" class="md-tabs__link">
+          
+  
+    
+  
+  操作系统教程
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="Oildum/Atklom&#39;s Blog" class="md-nav__button md-logo" aria-label="Oildum/Atklom's Blog" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Oildum/Atklom's Blog
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    主页
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    操作系统教程
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            操作系统教程
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    旧教程
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            旧教程
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../00-beforestart/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    00 开始之前
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../01-first-boot-sector/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    01 第一个引导扇区
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../02-fat12-file-system/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    02 FAT12 文件系统
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../03-find-loader/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    03 查找 Loader
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../04-load-and-jump-into-loader/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    04 加载并跳入 Loader
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../05-read-kernel-and-into-32/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    05 读取内核并进入保护模式
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../06-relocate-and-jump-into-kernel/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    06 重新放置内核并进入内核
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../07-print-impl/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    07 实现我们自己的打印函数
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../08-we-love-makefile/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    08 整理文件
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../09-gdtidt/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    09 重设 GDT、IDT
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../10-irq/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    10 接收外部中断，从时钟开始
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../11-seg-memman/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    11 段式内存管理的实现
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../12-multitasking/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    12 多任务
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../13-kbd-part0/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    13 终于可以打字了——键盘驱动（上）
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../14-kbd-part1/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    14 终于可以打字了——键盘驱动（下）
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../15-syscall/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    15 系统调用——应用程序与系统的交互之门
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../16-shell-d-and-i/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    16 shell的设计与实现
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../17-fat16-part0/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    17 实现FAT16文件系统（1）——基础设施建设：硬盘驱动、RTC
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    18 实现FAT16文件系统（2）——格式化、打开文件、创建文件
+  </span>
+  
+
+      </a>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../19-fat16-part2/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    19 实现FAT16文件系统（3）——读取文件、写入文件、删除文件
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../20-fat16-part3/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    20 实现FAT16文件系统（4）——上层包装
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../21-fat16-part4/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    21 FAT16 文件系统实战——抛弃软盘，从硬盘启动
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../22-first-app/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    22 第一个应用程序
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../23-c-app-part0/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    23 C语言应用程序（上）
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../24-c-app-part1/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    24 C语言应用程序（下）
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../new/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    新教程
+  </span>
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            新教程
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  <h1>18 实现FAT16文件系统（2）——格式化、打开文件、创建文件</h1>
+
+<p>什么是 FAT16 文件系统呢？这就涉及到一段比较长的科学历史，总之，FAT16 文件系统是由微软公司自主研发的一款……（后面忘了）</p>
+<p>FAT16 文件系统由以下几个部分组成：引导扇区、FAT 表、根目录区以及数据区。其中，引导扇区就是单独的一个扇区；FAT 表共两份，互为备份，各占 32 个扇区；根目录区占 32 个扇区；数据区占据剩余部分。FAT 表和数据区我们放在下一节来讲，本节我们只处理引导扇区和根目录区。</p>
+<p>引导扇区的结构和前面的图 2-1 完全一致，在这里重新放一遍：</p>
+<p><img alt="" src="../images/fat12.webp" /></p>
+<p>（图 18-1 FAT12/16 引导扇区结构）</p>
+<p>它对应的代码如代码 18-1 所示：</p>
+<p><strong>代码 18-1 <code>FAT16</code> 引导扇区结构（include/file.h）</strong>
+<div class="highlight"><pre><span></span><code><span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">FAT_BPB_HEADER</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">BS_jmpBoot</span><span class="p">[</span><span class="mi">3</span><span class="p">];</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">BS_OEMName</span><span class="p">[</span><span class="mi">8</span><span class="p">];</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">short</span><span class="w"> </span><span class="n">BPB_BytsPerSec</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">BPB_SecPerClust</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">short</span><span class="w"> </span><span class="n">BPB_RsvdSecCnt</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">BPB_NumFATs</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">short</span><span class="w"> </span><span class="n">BPB_RootEntCnt</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">short</span><span class="w"> </span><span class="n">BPB_TotSec16</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">BPB_Media</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">short</span><span class="w"> </span><span class="n">BPB_FATSz16</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">short</span><span class="w"> </span><span class="n">BPB_SecPerTrk</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">short</span><span class="w"> </span><span class="n">BPB_NumHeads</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">BPB_HiddSec</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">BPB_TotSec32</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">BS_DrvNum</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">BS_Reserved1</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">BS_BootSig</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">BS_VolID</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">BS_VolLab</span><span class="p">[</span><span class="mi">11</span><span class="p">];</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">BS_FileSysType</span><span class="p">[</span><span class="mi">8</span><span class="p">];</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">BS_BootCode</span><span class="p">[</span><span class="mi">448</span><span class="p">];</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">short</span><span class="w"> </span><span class="n">BS_BootEndSig</span><span class="p">;</span>
+<span class="p">}</span><span class="w"> </span><span class="n">__attribute__</span><span class="p">((</span><span class="n">packed</span><span class="p">))</span><span class="w"> </span><span class="n">bpb_hdr_t</span><span class="p">;</span>
+</code></pre></div></p>
+<p>想要创建一个 FAT16 文件系统，需要把 BPB 的内容依照上面的格式填入，同时还要初始化 FAT 表——在目前的语境下，相当于向两个扇区处分别写入 4 个字节，具体是什么后面再说。</p>
+<p>注意到，BPB 中有成员 <code>BPB_TotSecXX</code>，这就需要我们对硬盘的总扇区个数进行考察。可以通过向硬盘发送 <code>IDENTIFY</code> 命令来获取硬盘相关信息，具体步骤如下：</p>
+<blockquote>
+<p>1.等待上一步可能存在的硬盘操作完成。
+2.向0x1f6寄存器写入0x00，0x1f7寄存器写入0xec。
+3.等待硬盘操作完成。
+4.从0x1f0寄存器读取 512 字节的硬盘信息。
+5.从硬盘信息中收集硬盘总扇区数。</p>
+</blockquote>
+<p>详细代码如代码 18-2：</p>
+<p><strong>代码 18-2 获取硬盘扇区数（drivers/hd.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">hd_size_cache</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">get_hd_sects</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">hd_size_cache</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">hd_size_cache</span><span class="p">;</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">inb</span><span class="p">(</span><span class="mh">0x1f7</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mh">0x80</span><span class="p">);</span><span class="w"> </span><span class="c1">// 等硬盘不忙了再发送命令，具体意义见wait_disk_ready</span>
+<span class="w">    </span><span class="n">outw</span><span class="p">(</span><span class="mh">0x1f6</span><span class="p">,</span><span class="w"> </span><span class="mh">0x00</span><span class="p">);</span>
+<span class="w">    </span><span class="n">outw</span><span class="p">(</span><span class="mh">0x1f7</span><span class="p">,</span><span class="w"> </span><span class="mh">0xec</span><span class="p">);</span><span class="w"> </span><span class="c1">// IDENTIFY 命令</span>
+<span class="w">    </span><span class="n">wait_disk_ready</span><span class="p">();</span>
+<span class="w">    </span><span class="kt">uint16_t</span><span class="w"> </span><span class="o">*</span><span class="n">hdinfo</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">uint16_t</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">kmalloc</span><span class="p">(</span><span class="mi">512</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">buffer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">hdinfo</span><span class="p">;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">256</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 每次硬盘会发送2个字节数据</span>
+<span class="w">        </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inw</span><span class="p">(</span><span class="mh">0x1f0</span><span class="p">);</span>
+<span class="w">        </span><span class="o">*</span><span class="p">((</span><span class="kt">uint16_t</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">buffer</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">data</span><span class="p">;</span><span class="w"> </span><span class="c1">// 存入buf</span>
+<span class="w">        </span><span class="n">buffer</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">sectors</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">((</span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="n">hdinfo</span><span class="p">[</span><span class="mi">61</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">16</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">hdinfo</span><span class="p">[</span><span class="mi">60</span><span class="p">];</span>
+<span class="w">    </span><span class="n">kfree</span><span class="p">(</span><span class="n">hd_info</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span><span class="n">hd_size_cache</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sectors</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>由于硬盘操作可能比较耗时，这里存了一个 <code>hd_size_cache</code>，在第一次调用后就直接引用这里面的数据而不再向硬盘发命令了。由于用到了 <code>kmalloc</code>，记得在开头添加 <code>#include "memory.h"</code>。</p>
+<p>那么，新建 <code>fs</code> 目录，并新建 <code>fat16.c</code> 和 <code>file.c</code>，由于出现了新目录，所以贴一下新 Makefile：</p>
+<p><strong>代码 18-3 新 Makefile（Makefile）</strong>
+<div class="highlight"><pre><span></span><code><span class="nv">OBJS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>out/kernel.o<span class="w"> </span>out/common.o<span class="w"> </span>out/monitor.o<span class="w"> </span>out/main.o<span class="w"> </span>out/gdtidt.o<span class="w"> </span>out/nasmfunc.o<span class="w"> </span>out/isr.o<span class="w"> </span>out/interrupt.o<span class="w"> </span><span class="se">\</span>
+<span class="w">     </span>out/string.o<span class="w"> </span>out/timer.o<span class="w"> </span>out/memory.o<span class="w"> </span>out/mtask.o<span class="w"> </span>out/keyboard.o<span class="w"> </span>out/keymap.o<span class="w"> </span>out/fifo.o<span class="w"> </span>out/syscall.o<span class="w"> </span>out/syscall_impl.o<span class="w"> </span><span class="se">\</span>
+<span class="w">     </span>out/stdio.o<span class="w"> </span>out/kstdio.o<span class="w"> </span>out/shell.o<span class="w"> </span>out/hd.o<span class="w"> </span>out/fat16.o<span class="w"> </span>out/cmos.o<span class="w"> </span>out/file.o
+
+<span class="nf">out/%.o </span><span class="o">:</span><span class="w"> </span><span class="n">kernel</span>/%.<span class="n">c</span>
+<span class="w">    </span>i686-elf-gcc<span class="w"> </span>-c<span class="w"> </span>-I<span class="w"> </span>include<span class="w"> </span>-O0<span class="w"> </span>-fno-builtin<span class="w"> </span>-fno-stack-protector<span class="w"> </span>-o<span class="w"> </span>out/<span class="nv">$*</span>.o<span class="w"> </span>kernel/<span class="nv">$*</span>.c
+
+<span class="nf">out/%.o </span><span class="o">:</span><span class="w"> </span><span class="n">kernel</span>/%.<span class="n">asm</span>
+<span class="w">    </span>nasm<span class="w"> </span>-f<span class="w"> </span>elf<span class="w"> </span>-o<span class="w"> </span>out/<span class="nv">$*</span>.o<span class="w"> </span>kernel/<span class="nv">$*</span>.asm
+
+<span class="nf">out/%.o </span><span class="o">:</span><span class="w"> </span><span class="n">lib</span>/%.<span class="n">c</span>
+<span class="w">    </span>i686-elf-gcc<span class="w"> </span>-c<span class="w"> </span>-I<span class="w"> </span>include<span class="w"> </span>-O0<span class="w"> </span>-fno-builtin<span class="w"> </span>-fno-stack-protector<span class="w"> </span>-o<span class="w"> </span>out/<span class="nv">$*</span>.o<span class="w"> </span>lib/<span class="nv">$*</span>.c
+
+<span class="nf">out/%.o </span><span class="o">:</span><span class="w"> </span><span class="n">lib</span>/%.<span class="n">asm</span>
+<span class="w">    </span>nasm<span class="w"> </span>-f<span class="w"> </span>elf<span class="w"> </span>-o<span class="w"> </span>out/<span class="nv">$*</span>.o<span class="w"> </span>lib/<span class="nv">$*</span>.asm
+
+<span class="nf">out/%.o </span><span class="o">:</span><span class="w"> </span><span class="n">drivers</span>/%.<span class="n">c</span>
+<span class="w">    </span>i686-elf-gcc<span class="w"> </span>-c<span class="w"> </span>-I<span class="w"> </span>include<span class="w"> </span>-O0<span class="w"> </span>-fno-builtin<span class="w"> </span>-fno-stack-protector<span class="w"> </span>-o<span class="w"> </span>out/<span class="nv">$*</span>.o<span class="w"> </span>drivers/<span class="nv">$*</span>.c
+
+<span class="nf">out/%.o </span><span class="o">:</span><span class="w"> </span><span class="n">drivers</span>/%.<span class="n">asm</span>
+<span class="w">    </span>nasm<span class="w"> </span>-f<span class="w"> </span>elf<span class="w"> </span>-o<span class="w"> </span>out/<span class="nv">$*</span>.o<span class="w"> </span>drivers/<span class="nv">$*</span>.asm
+
+<span class="nf">out/%.o </span><span class="o">:</span><span class="w"> </span><span class="n">fs</span>/%.<span class="n">c</span>
+<span class="w">    </span>i686-elf-gcc<span class="w"> </span>-c<span class="w"> </span>-I<span class="w"> </span>include<span class="w"> </span>-O0<span class="w"> </span>-fno-builtin<span class="w"> </span>-fno-stack-protector<span class="w"> </span>-o<span class="w"> </span>out/<span class="nv">$*</span>.o<span class="w"> </span>fs/<span class="nv">$*</span>.c
+
+<span class="nf">out/%.o </span><span class="o">:</span><span class="w"> </span><span class="n">fs</span>/%.<span class="n">asm</span>
+<span class="w">    </span>nasm<span class="w"> </span>-f<span class="w"> </span>elf<span class="w"> </span>-o<span class="w"> </span>out/<span class="nv">$*</span>.o<span class="w"> </span>fs/<span class="nv">$*</span>.asm
+
+<span class="nf">out/%.bin </span><span class="o">:</span><span class="w"> </span><span class="n">boot</span>/%.<span class="n">asm</span>
+<span class="w">    </span>nasm<span class="w"> </span>-I<span class="w"> </span>boot/include<span class="w"> </span>-o<span class="w"> </span>out/<span class="nv">$*</span>.bin<span class="w"> </span>boot/<span class="nv">$*</span>.asm
+
+<span class="nf">out/kernel.bin </span><span class="o">:</span><span class="w"> </span><span class="k">$(</span><span class="nv">OBJS</span><span class="k">)</span>
+<span class="w">    </span>i686-elf-ld<span class="w"> </span>-s<span class="w"> </span>-Ttext<span class="w"> </span>0x100000<span class="w"> </span>-o<span class="w"> </span>out/kernel.bin<span class="w"> </span><span class="k">$(</span>OBJS<span class="k">)</span>
+
+<span class="nf">a.img </span><span class="o">:</span><span class="w"> </span><span class="n">out</span>/<span class="n">boot</span>.<span class="n">bin</span> <span class="n">out</span>/<span class="n">loader</span>.<span class="n">bin</span> <span class="n">out</span>/<span class="n">kernel</span>.<span class="n">bin</span>
+<span class="w">    </span>dd<span class="w"> </span><span class="k">if</span><span class="o">=</span>out/boot.bin<span class="w"> </span><span class="nv">of</span><span class="o">=</span>a.img<span class="w"> </span><span class="nv">bs</span><span class="o">=</span><span class="m">512</span><span class="w"> </span><span class="nv">count</span><span class="o">=</span><span class="m">1</span>
+<span class="w">    </span>edimg<span class="w"> </span>imgin:a.img<span class="w"> </span>copy<span class="w"> </span>from:out/loader.bin<span class="w"> </span>to:@:<span class="w"> </span>copy<span class="w"> </span>from:out/kernel.bin<span class="w"> </span>to:@:<span class="w"> </span>imgout:a.img
+
+<span class="nf">run </span><span class="o">:</span><span class="w"> </span><span class="n">a</span>.<span class="n">img</span>
+<span class="w">    </span>qemu-system-i386<span class="w"> </span>-fda<span class="w"> </span>a.img<span class="w"> </span>-hda<span class="w"> </span>hd.img<span class="w"> </span>-boot<span class="w"> </span>a
+
+<span class="nf">clean </span><span class="o">:</span>
+<span class="w">    </span>cmd<span class="w"> </span>/c<span class="w"> </span>del<span class="w"> </span>/f<span class="w"> </span>/s<span class="w"> </span>/q<span class="w"> </span>out
+
+<span class="nf">default </span><span class="o">:</span><span class="w"> </span><span class="n">clean</span> <span class="n">run</span>
+</code></pre></div></p>
+<p>最下面我悄悄补了两条指令：<code>clean</code> 和 <code>default</code>，<code>clean</code> 用于把 <code>out</code> 当中的一切全部删除，<code>default</code> 则是先删后跑一步到位。</p>
+<p>格式化文件系统也是相↑当↓公↑式→的操作，所以直接在下面贴代码了，具体细节会在代码里标注出来。</p>
+<p><strong>代码 18-4 创建 FAT16 文件系统（fs/fat16.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;hd.h&quot;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;memory.h&quot;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;file.h&quot;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cmos.h&quot;</span>
+
+<span class="c1">// 格式化文件系统</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">fat16_format_hd</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">default_boot_code</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="mh">0x8c</span><span class="p">,</span><span class="w"> </span><span class="mh">0xc8</span><span class="p">,</span><span class="w"> </span><span class="mh">0x8e</span><span class="p">,</span><span class="w"> </span><span class="mh">0xd8</span><span class="p">,</span><span class="w"> </span><span class="mh">0x8e</span><span class="p">,</span><span class="w"> </span><span class="mh">0xc0</span><span class="p">,</span><span class="w"> </span><span class="mh">0xb8</span><span class="p">,</span><span class="w"> </span><span class="mh">0x00</span><span class="p">,</span><span class="w"> </span><span class="mh">0x06</span><span class="p">,</span><span class="w"> </span><span class="mh">0xbb</span><span class="p">,</span><span class="w"> </span><span class="mh">0x00</span><span class="p">,</span><span class="w"> </span><span class="mh">0x07</span><span class="p">,</span><span class="w"> </span><span class="mh">0xb9</span><span class="p">,</span><span class="w"> </span><span class="mh">0x00</span><span class="p">,</span><span class="w"> </span><span class="mh">0x00</span><span class="p">,</span><span class="w"> </span><span class="mh">0xba</span><span class="p">,</span>
+<span class="w">        </span><span class="mh">0x4f</span><span class="p">,</span><span class="w"> </span><span class="mh">0x18</span><span class="p">,</span><span class="w"> </span><span class="mh">0xcd</span><span class="p">,</span><span class="w"> </span><span class="mh">0x10</span><span class="p">,</span><span class="w"> </span><span class="mh">0xb6</span><span class="p">,</span><span class="w"> </span><span class="mh">0x00</span><span class="p">,</span><span class="w"> </span><span class="mh">0xe8</span><span class="p">,</span><span class="w"> </span><span class="mh">0x02</span><span class="p">,</span><span class="w"> </span><span class="mh">0x00</span><span class="p">,</span><span class="w"> </span><span class="mh">0xeb</span><span class="p">,</span><span class="w"> </span><span class="mh">0xfe</span><span class="p">,</span><span class="w"> </span><span class="mh">0xb8</span><span class="p">,</span><span class="w"> </span><span class="mh">0x6c</span><span class="p">,</span><span class="w"> </span><span class="mh">0x7c</span><span class="p">,</span><span class="w"> </span><span class="mh">0x89</span><span class="p">,</span><span class="w"> </span><span class="mh">0xc5</span><span class="p">,</span>
+<span class="w">        </span><span class="mh">0xb9</span><span class="p">,</span><span class="w"> </span><span class="mh">0x2a</span><span class="p">,</span><span class="w"> </span><span class="mh">0x00</span><span class="p">,</span><span class="w"> </span><span class="mh">0xb8</span><span class="p">,</span><span class="w"> </span><span class="mh">0x01</span><span class="p">,</span><span class="w"> </span><span class="mh">0x13</span><span class="p">,</span><span class="w"> </span><span class="mh">0xbb</span><span class="p">,</span><span class="w"> </span><span class="mh">0x07</span><span class="p">,</span><span class="w"> </span><span class="mh">0x00</span><span class="p">,</span><span class="w"> </span><span class="mh">0xb2</span><span class="p">,</span><span class="w"> </span><span class="mh">0x00</span><span class="p">,</span><span class="w"> </span><span class="mh">0xcd</span><span class="p">,</span><span class="w"> </span><span class="mh">0x10</span><span class="p">,</span><span class="w"> </span><span class="mh">0xc3</span><span class="p">,</span><span class="w"> </span><span class="mh">0x46</span><span class="p">,</span><span class="w"> </span><span class="mh">0x41</span><span class="p">,</span>
+<span class="w">        </span><span class="mh">0x54</span><span class="p">,</span><span class="w"> </span><span class="mh">0x41</span><span class="p">,</span><span class="w"> </span><span class="mh">0x4c</span><span class="p">,</span><span class="w"> </span><span class="mh">0x3a</span><span class="p">,</span><span class="w"> </span><span class="mh">0x20</span><span class="p">,</span><span class="w"> </span><span class="mh">0x6e</span><span class="p">,</span><span class="w"> </span><span class="mh">0x6f</span><span class="p">,</span><span class="w"> </span><span class="mh">0x74</span><span class="p">,</span><span class="w"> </span><span class="mh">0x20</span><span class="p">,</span><span class="w"> </span><span class="mh">0x61</span><span class="p">,</span><span class="w"> </span><span class="mh">0x20</span><span class="p">,</span><span class="w"> </span><span class="mh">0x62</span><span class="p">,</span><span class="w"> </span><span class="mh">0x6f</span><span class="p">,</span><span class="w"> </span><span class="mh">0x6f</span><span class="p">,</span><span class="w"> </span><span class="mh">0x74</span><span class="p">,</span><span class="w"> </span><span class="mh">0x61</span><span class="p">,</span>
+<span class="w">        </span><span class="mh">0x62</span><span class="p">,</span><span class="w"> </span><span class="mh">0x6c</span><span class="p">,</span><span class="w"> </span><span class="mh">0x65</span><span class="p">,</span><span class="w"> </span><span class="mh">0x20</span><span class="p">,</span><span class="w"> </span><span class="mh">0x64</span><span class="p">,</span><span class="w"> </span><span class="mh">0x69</span><span class="p">,</span><span class="w"> </span><span class="mh">0x73</span><span class="p">,</span><span class="w"> </span><span class="mh">0x6b</span><span class="p">,</span><span class="w"> </span><span class="mh">0x2e</span><span class="p">,</span><span class="w"> </span><span class="mh">0x20</span><span class="p">,</span><span class="w"> </span><span class="mh">0x53</span><span class="p">,</span><span class="w"> </span><span class="mh">0x79</span><span class="p">,</span><span class="w"> </span><span class="mh">0x73</span><span class="p">,</span><span class="w"> </span><span class="mh">0x74</span><span class="p">,</span><span class="w"> </span><span class="mh">0x65</span><span class="p">,</span><span class="w"> </span><span class="mh">0x6d</span><span class="p">,</span>
+<span class="w">        </span><span class="mh">0x20</span><span class="p">,</span><span class="w"> </span><span class="mh">0x68</span><span class="p">,</span><span class="w"> </span><span class="mh">0x61</span><span class="p">,</span><span class="w"> </span><span class="mh">0x6c</span><span class="p">,</span><span class="w"> </span><span class="mh">0x74</span><span class="p">,</span><span class="w"> </span><span class="mh">0x65</span><span class="p">,</span><span class="w"> </span><span class="mh">0x64</span><span class="p">,</span><span class="w"> </span><span class="mh">0x2e</span><span class="p">,</span><span class="w"> </span><span class="mh">0x00</span><span class="p">,</span><span class="w"> </span><span class="mh">0x00</span>
+<span class="w">    </span><span class="p">};</span><span class="w"> </span><span class="c1">// 这段代码的意思是：输出一段信息，是用nasm写完编译的</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">fat1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">kmalloc</span><span class="p">(</span><span class="mi">512</span><span class="p">);</span>
+<span class="w">    </span><span class="n">hd_read</span><span class="p">(</span><span class="n">FAT1_START_LBA</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">fat1</span><span class="p">);</span><span class="w"> </span><span class="c1">// 读取FAT表第一个扇区</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">fat1</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mh">0xff</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// 如果第一个字节是0xff，那就是有文件系统</span>
+<span class="w">        </span><span class="n">kfree</span><span class="p">(</span><span class="n">fat1</span><span class="p">);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="c1">// 那就没有必要格式化了</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">kfree</span><span class="p">(</span><span class="n">fat1</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">sectors</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_hd_sects</span><span class="p">();</span><span class="w"> </span><span class="c1">// 获取硬盘扇区大小先存着</span>
+<span class="w">    </span><span class="n">bpb_hdr_t</span><span class="w"> </span><span class="n">hdr</span><span class="p">;</span><span class="w"> </span><span class="c1">// 构造一个引导扇区</span>
+<span class="w">    </span><span class="n">hdr</span><span class="p">.</span><span class="n">BS_jmpBoot</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0xeb</span><span class="p">;</span>
+<span class="w">    </span><span class="n">hdr</span><span class="p">.</span><span class="n">BS_jmpBoot</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x3c</span><span class="p">;</span><span class="w"> </span><span class="c1">// jmp到default_boot_code</span>
+<span class="w">    </span><span class="n">hdr</span><span class="p">.</span><span class="n">BS_jmpBoot</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x90</span><span class="p">;</span><span class="w"> </span><span class="c1">// nop凑够3字节</span>
+<span class="w">    </span><span class="n">strcpy</span><span class="p">(</span><span class="n">hdr</span><span class="p">.</span><span class="n">BS_OEMName</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;TUTORIAL&quot;</span><span class="p">);</span><span class="w"> </span><span class="c1">// OEM为tutorial</span>
+<span class="w">    </span><span class="n">hdr</span><span class="p">.</span><span class="n">BPB_BytsPerSec</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">512</span><span class="p">;</span>
+<span class="w">    </span><span class="n">hdr</span><span class="p">.</span><span class="n">BPB_SecPerClust</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="n">hdr</span><span class="p">.</span><span class="n">BPB_RsvdSecCnt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="n">hdr</span><span class="p">.</span><span class="n">BPB_NumFATs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w"> </span><span class="c1">// 总共两个FAT，这是规定</span>
+<span class="w">    </span><span class="n">hdr</span><span class="p">.</span><span class="n">BPB_RootEntCnt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">512</span><span class="p">;</span><span class="w"> </span><span class="c1">// 根目录区32个扇区，一个目录项占32字节，32*512/32=512</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">sectors</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="p">(</span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">16</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">hdr</span><span class="p">.</span><span class="n">BPB_TotSec16</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sectors</span><span class="p">;</span>
+<span class="w">        </span><span class="n">hdr</span><span class="p">.</span><span class="n">BPB_TotSec32</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">hdr</span><span class="p">.</span><span class="n">BPB_TotSec16</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">        </span><span class="n">hdr</span><span class="p">.</span><span class="n">BPB_TotSec32</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sectors</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">hdr</span><span class="p">.</span><span class="n">BPB_Media</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0xf8</span><span class="p">;</span><span class="w"> </span><span class="c1">// 硬盘统一数据</span>
+<span class="w">    </span><span class="n">hdr</span><span class="p">.</span><span class="n">BPB_FATSz16</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">32</span><span class="p">;</span><span class="w"> </span><span class="c1">// FAT16是这样的</span>
+<span class="w">    </span><span class="n">hdr</span><span class="p">.</span><span class="n">BPB_SecPerTrk</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">63</span><span class="p">;</span><span class="w"> </span><span class="c1">// 硬盘统一数据</span>
+<span class="w">    </span><span class="n">hdr</span><span class="p">.</span><span class="n">BPB_NumHeads</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">16</span><span class="p">;</span><span class="w"> </span><span class="c1">// 硬盘统一数据</span>
+<span class="w">    </span><span class="n">hdr</span><span class="p">.</span><span class="n">BPB_HiddSec</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="n">hdr</span><span class="p">.</span><span class="n">BS_DrvNum</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x80</span><span class="p">;</span><span class="w"> </span><span class="c1">// 硬盘统一数据</span>
+<span class="w">    </span><span class="n">hdr</span><span class="p">.</span><span class="n">BS_Reserved1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="n">hdr</span><span class="p">.</span><span class="n">BS_BootSig</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x29</span><span class="p">;</span>
+<span class="w">    </span><span class="n">hdr</span><span class="p">.</span><span class="n">BS_VolID</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="n">strcpy</span><span class="p">(</span><span class="n">hdr</span><span class="p">.</span><span class="n">BS_VolLab</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;FOOLISHABBY&quot;</span><span class="p">);</span><span class="w"> </span><span class="c1">// 可以随便改</span>
+<span class="w">    </span><span class="n">strcpy</span><span class="p">(</span><span class="n">hdr</span><span class="p">.</span><span class="n">BS_FileSysType</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;FAT16   &quot;</span><span class="p">);</span><span class="w"> </span><span class="c1">// 尽量别改</span>
+<span class="w">    </span><span class="n">memset</span><span class="p">(</span><span class="n">hdr</span><span class="p">.</span><span class="n">BS_BootCode</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">448</span><span class="p">);</span>
+<span class="w">    </span><span class="n">memcpy</span><span class="p">(</span><span class="n">hdr</span><span class="p">.</span><span class="n">BS_BootCode</span><span class="p">,</span><span class="w"> </span><span class="n">default_boot_code</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">default_boot_code</span><span class="p">));</span>
+<span class="w">    </span><span class="n">hdr</span><span class="p">.</span><span class="n">BS_BootEndSig</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0xaa55</span><span class="p">;</span>
+<span class="w">    </span><span class="n">hd_write</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">hdr</span><span class="p">);</span><span class="w"> </span><span class="c1">// 引导扇区就这样了</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">initial_fat</span><span class="p">[</span><span class="mi">512</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mh">0xff</span><span class="p">,</span><span class="w"> </span><span class="mh">0xf8</span><span class="p">,</span><span class="w"> </span><span class="mh">0xff</span><span class="p">,</span><span class="w"> </span><span class="mh">0xff</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">};</span><span class="w"> </span><span class="c1">// 硬盘统一数据</span>
+<span class="w">    </span><span class="n">hd_write</span><span class="p">(</span><span class="n">FAT1_START_LBA</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">initial_fat</span><span class="p">);</span><span class="w"> </span><span class="c1">// 写入FAT1</span>
+<span class="w">    </span><span class="n">hd_write</span><span class="p">(</span><span class="n">FAT1_START_LBA</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">FAT1_SECTORS</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">initial_fat</span><span class="p">);</span><span class="w"> </span><span class="c1">// 写入FAT2</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>在上面的代码中，出现了相当多的常量，它们被统一定义在 include/file.h 中：</p>
+<p><strong>代码 18-5 FAT16 文件系统相关常量（include/file.h）</strong>
+<div class="highlight"><pre><span></span><code><span class="cp">#ifndef _FILE_H_</span>
+<span class="cp">#define _FILE_H_</span>
+
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;common.h&quot;</span>
+
+<span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">FILEINFO</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">name</span><span class="p">[</span><span class="mi">8</span><span class="p">],</span><span class="w"> </span><span class="n">ext</span><span class="p">[</span><span class="mi">3</span><span class="p">];</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">type</span><span class="p">,</span><span class="w"> </span><span class="n">reserved</span><span class="p">[</span><span class="mi">10</span><span class="p">];</span>
+<span class="w">    </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">time</span><span class="p">,</span><span class="w"> </span><span class="n">date</span><span class="p">,</span><span class="w"> </span><span class="n">clustno</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">size</span><span class="p">;</span>
+<span class="p">}</span><span class="w">  </span><span class="n">__attribute__</span><span class="p">((</span><span class="n">packed</span><span class="p">))</span><span class="w"> </span><span class="n">fileinfo_t</span><span class="p">;</span>
+
+<span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">FAT_BPB_HEADER</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">BS_jmpBoot</span><span class="p">[</span><span class="mi">3</span><span class="p">];</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">BS_OEMName</span><span class="p">[</span><span class="mi">8</span><span class="p">];</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">short</span><span class="w"> </span><span class="n">BPB_BytsPerSec</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">BPB_SecPerClust</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">short</span><span class="w"> </span><span class="n">BPB_RsvdSecCnt</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">BPB_NumFATs</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">short</span><span class="w"> </span><span class="n">BPB_RootEntCnt</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">short</span><span class="w"> </span><span class="n">BPB_TotSec16</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">BPB_Media</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">short</span><span class="w"> </span><span class="n">BPB_FATSz16</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">short</span><span class="w"> </span><span class="n">BPB_SecPerTrk</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">short</span><span class="w"> </span><span class="n">BPB_NumHeads</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">BPB_HiddSec</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">BPB_TotSec32</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">BS_DrvNum</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">BS_Reserved1</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">BS_BootSig</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">BS_VolID</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">BS_VolLab</span><span class="p">[</span><span class="mi">11</span><span class="p">];</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">BS_FileSysType</span><span class="p">[</span><span class="mi">8</span><span class="p">];</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">BS_BootCode</span><span class="p">[</span><span class="mi">448</span><span class="p">];</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">short</span><span class="w"> </span><span class="n">BS_BootEndSig</span><span class="p">;</span>
+<span class="p">}</span><span class="w"> </span><span class="n">__attribute__</span><span class="p">((</span><span class="n">packed</span><span class="p">))</span><span class="w"> </span><span class="n">bpb_hdr_t</span><span class="p">;</span>
+
+<span class="cp">#define SECTOR_SIZE 512</span>
+<span class="cp">#define FAT1_SECTORS 32</span>
+<span class="cp">#define ROOT_DIR_SECTORS 32</span>
+<span class="cp">#define FAT1_START_LBA 1</span>
+<span class="cp">#define ROOT_DIR_START_LBA 65</span>
+<span class="cp">#define DATA_START_LBA 97</span>
+<span class="cp">#define SECTOR_CLUSTER_BALANCE (DATA_START_LBA - 2)</span>
+<span class="cp">#define MAX_FILE_NUM 512</span>
+
+<span class="cp">#endif</span>
+</code></pre></div></p>
+<p>这其中有一些常量，留待下一节处理，先放着不管。</p>
+<p>按照上面的方法，应该就可以格式化出一个 FAT16 文件系统了。下面我们进行测试。</p>
+<p>首先，在命令行输入 <code>ftimgcreate hd.img -t hd -size 80</code>，重新创建虚拟硬盘 <code>hd.img</code>：</p>
+<p><img alt="" src="../images/graph-18-2.png" /></p>
+<p>（图 18-2 测试步骤1）</p>
+<p>然后，调用 <code>ftls hd.img -l</code>，确认 <code>hd.img</code> 中不存在 FAT16 文件系统：</p>
+<p><img alt="" src="../images/graph-18-3.png" /></p>
+<p>（图 18-3 测试步骤2）</p>
+<p>在 <code>main.c</code> 中添加 <code>fat16_format_hd()</code>，编译，运行，等待 10 秒后，再次 <code>ftls hd.img -l</code>，确认文件系统已经存在：</p>
+<p><img alt="" src="../images/graph-18-4.png" /></p>
+<p>（图 18-4 测试步骤3）</p>
+<p>文件系统已经成功创建，说明我们的格式化函数已经完成。接下来，就可以开始进行创建文件和打开文件的操作了。</p>
+<p>目前而言，创建文件和打开文件都只需要操作根目录区即可完成。根目录区中，一个文件对应的信息为 32 个字节，具体代码如下所示：</p>
+<p><strong>代码 18-6 根目录区中的文件信息（include/file.h）</strong>
+<div class="highlight"><pre><span></span><code><span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">FILEINFO</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">name</span><span class="p">[</span><span class="mi">8</span><span class="p">],</span><span class="w"> </span><span class="n">ext</span><span class="p">[</span><span class="mi">3</span><span class="p">];</span><span class="w"> </span><span class="c1">// 文件名，扩展名</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">type</span><span class="p">,</span><span class="w"> </span><span class="n">reserved</span><span class="p">[</span><span class="mi">10</span><span class="p">];</span><span class="w"> </span><span class="c1">// 类型，预留</span>
+<span class="w">    </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">time</span><span class="p">,</span><span class="w"> </span><span class="n">date</span><span class="p">,</span><span class="w"> </span><span class="n">clustno</span><span class="p">;</span><span class="w"> </span><span class="c1">// 修改日期，修改时间，首簇号（下一节再讲）</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">size</span><span class="p">;</span><span class="w"> </span><span class="c1">// 文件大小</span>
+<span class="p">}</span><span class="w">  </span><span class="n">__attribute__</span><span class="p">((</span><span class="n">packed</span><span class="p">))</span><span class="w"> </span><span class="n">fileinfo_t</span><span class="p">;</span>
+</code></pre></div></p>
+<p>不难发现，微软在设计时显然考虑地不多，一个文件最多只能有 8 个字符作为文件名、3 个字符作为扩展名，我们称之为 <strong>8.3 文件名</strong>。事实上，微软对此有解决方案，名为<strong>长文件名</strong>（LFN），然而实现上要考虑的细节太多，所以干脆不管。</p>
+<p>那么，首先要考虑的就是怎样把一个文件名转化为一个合法的 8.3 文件名。在转化时，要求文件名除了大小写字母、数字外，其他字符都将被替换为下划线，小写字母将会自动转为大写字母，并且在第一个字节为 0xe5 时要自动替换为 0x05。这样的工作十分繁杂，我们选择直接修改 <code>myfattools</code> 中的 <code>lfn2sfn</code> 函数（有开源抄就是好）：</p>
+<p><strong>代码 18-7 文件名转 8.3（fs/fat16.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="c1">// 把原文件名改编为FAT16所要求的8.3格式</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">lfn2sfn</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">lfn</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">sfn</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">strlen</span><span class="p">(</span><span class="n">lfn</span><span class="p">),</span><span class="w"> </span><span class="n">last_dot</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">--</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// 从尾到头遍历，寻找最后一个.的位置</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">lfn</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="sc">&#39;.&#39;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// 找到了</span>
+<span class="w">            </span><span class="n">last_dot</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">i</span><span class="p">;</span><span class="w"> </span><span class="c1">// 最后一个.赋值一下</span>
+<span class="w">            </span><span class="k">break</span><span class="p">;</span><span class="w"> </span><span class="c1">// 跳出循环</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">last_dot</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">-1</span><span class="p">)</span><span class="w"> </span><span class="n">last_dot</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">len</span><span class="p">;</span><span class="w"> </span><span class="c1">// 没有扩展名，那就在最后虚空加个.</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">lfn</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="sc">&#39;.&#39;</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span><span class="w"> </span><span class="c1">// 首字符是.，不支持</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">len_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">last_dot</span><span class="p">,</span><span class="w"> </span><span class="n">len_ext</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">last_dot</span><span class="p">;</span><span class="w"> </span><span class="c1">// 计算文件名与扩展名各自有多长</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">len_name</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">8</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span><span class="w"> </span><span class="c1">// 文件名长于8个字符，不支持</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">len_ext</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">3</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span><span class="w"> </span><span class="c1">// 扩展名长于3个字符，不支持</span>
+<span class="w">    </span><span class="c1">// 事实上FAT对此有解决方案，称为长文件名（LFN），但实现较为复杂，暂时先不讨论</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">malloc</span><span class="p">(</span><span class="mi">10</span><span class="p">);</span><span class="w"> </span><span class="c1">// 多分配点内存</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">ext</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">NULL</span><span class="p">;</span><span class="w"> </span><span class="c1">// ext不一定有</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">len_ext</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="n">ext</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">malloc</span><span class="p">(</span><span class="mi">5</span><span class="p">);</span><span class="w"> </span><span class="c1">// 有扩展名，分配内存</span>
+<span class="w">    </span><span class="n">memcpy</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">lfn</span><span class="p">,</span><span class="w"> </span><span class="n">len_name</span><span class="p">);</span><span class="w"> </span><span class="c1">// 把name从lfn中拷出来</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">ext</span><span class="p">)</span><span class="w"> </span><span class="n">memcpy</span><span class="p">(</span><span class="n">ext</span><span class="p">,</span><span class="w"> </span><span class="n">lfn</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">last_dot</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">len_ext</span><span class="p">);</span><span class="w"> </span><span class="c1">// 把ext从lfn中拷出来</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">name</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mh">0xe5</span><span class="p">)</span><span class="w"> </span><span class="n">name</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x05</span><span class="p">;</span><span class="w"> </span><span class="c1">// 如果第一个字节恰好是0xe5（已删除），将其更换为0x05</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">len_name</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// 处理文件名</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">name</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="sc">&#39;.&#39;</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span><span class="w"> </span><span class="c1">// 文件名中含有.，不支持</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="n">name</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="sc">&#39;a&#39;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">name</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="sc">&#39;z&#39;</span><span class="p">)</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="p">(</span><span class="n">name</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="sc">&#39;A&#39;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">name</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="sc">&#39;Z&#39;</span><span class="p">)</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="p">(</span><span class="n">name</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="sc">&#39;0&#39;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">name</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="sc">&#39;9&#39;</span><span class="p">))</span><span class="w"> </span><span class="n">sfn</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">name</span><span class="p">[</span><span class="n">i</span><span class="p">];</span><span class="w"> </span><span class="c1">// 数字或字母留为原样</span>
+<span class="w">        </span><span class="k">else</span><span class="w"> </span><span class="n">sfn</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sc">&#39;_&#39;</span><span class="p">;</span><span class="w"> </span><span class="c1">// 其余字符变为下划线</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">sfn</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="sc">&#39;a&#39;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">sfn</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="sc">&#39;z&#39;</span><span class="p">)</span><span class="w"> </span><span class="n">sfn</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="mh">0x20</span><span class="p">;</span><span class="w"> </span><span class="c1">// 小写变大写</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">len_name</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">8</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="n">sfn</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sc">&#39; &#39;</span><span class="p">;</span><span class="w"> </span><span class="c1">// 用空格填充剩余部分</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">len_ext</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// 处理扩展名</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="n">ext</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="sc">&#39;a&#39;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">ext</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="sc">&#39;z&#39;</span><span class="p">)</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="p">(</span><span class="n">ext</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="sc">&#39;A&#39;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">name</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="sc">&#39;Z&#39;</span><span class="p">)</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="p">(</span><span class="n">ext</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="sc">&#39;0&#39;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">ext</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="sc">&#39;9&#39;</span><span class="p">))</span><span class="w"> </span><span class="n">sfn</span><span class="p">[</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">8</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ext</span><span class="p">[</span><span class="n">i</span><span class="p">];</span><span class="w"> </span><span class="c1">// 数字或字母留为原样</span>
+<span class="w">        </span><span class="k">else</span><span class="w"> </span><span class="n">sfn</span><span class="p">[</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">8</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sc">&#39;_&#39;</span><span class="p">;</span><span class="w"> </span><span class="c1">// 其余字符变为下划线</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">sfn</span><span class="p">[</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">8</span><span class="p">]</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="sc">&#39;a&#39;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">sfn</span><span class="p">[</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">8</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="sc">&#39;z&#39;</span><span class="p">)</span><span class="w"> </span><span class="n">sfn</span><span class="p">[</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">8</span><span class="p">]</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="mh">0x20</span><span class="p">;</span><span class="w"> </span><span class="c1">// 小写变大写</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">len_ext</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">len_ext</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="n">sfn</span><span class="p">[</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">8</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sc">&#39; &#39;</span><span class="p">;</span><span class="w"> </span><span class="c1">// 用空格填充剩余部分</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="n">sfn</span><span class="p">[</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">8</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sc">&#39; &#39;</span><span class="p">;</span><span class="w"> </span><span class="c1">// 用空格填充剩余部分</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">sfn</span><span class="p">[</span><span class="mi">11</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="c1">// 文件名的结尾加一个\0</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="c1">// 正常退出</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>具体细节详细参见注释。</p>
+<p>在此之前，我们先来读取一下根目录区的所有文件练练手。如果你忘了根目录区的大小和起点的话，没有关系，file.h 的宏定义已经定义好了：</p>
+<p><strong>代码 18-8 读取根目录所有文件 <code>read_dir_entries</code>（drivers/fat16.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="c1">// 读取根目录目录项</span>
+<span class="n">fileinfo_t</span><span class="w"> </span><span class="o">*</span><span class="nf">read_dir_entries</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="n">dir_ents</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">fileinfo_t</span><span class="w"> </span><span class="o">*</span><span class="n">root_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">fileinfo_t</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">kmalloc</span><span class="p">(</span><span class="n">ROOT_DIR_SECTORS</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">SECTOR_SIZE</span><span class="p">);</span>
+<span class="w">    </span><span class="n">hd_read</span><span class="p">(</span><span class="n">ROOT_DIR_START_LBA</span><span class="p">,</span><span class="w"> </span><span class="n">ROOT_DIR_SECTORS</span><span class="p">,</span><span class="w"> </span><span class="n">root_dir</span><span class="p">);</span><span class="w"> </span><span class="c1">// 将根目录的所有扇区全部读入</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="p">;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">MAX_FILE_NUM</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">root_dir</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">name</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="k">break</span><span class="p">;</span><span class="w"> </span><span class="c1">// 如果名字的第一个字节是0，那就说明这里没有文件</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="o">*</span><span class="n">dir_ents</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">i</span><span class="p">;</span><span class="w"> </span><span class="c1">// 将目录项个数写到指针里</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">root_dir</span><span class="p">;</span><span class="w"> </span><span class="c1">// 返回根目录</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>使用的时候，我们的调用方法和 <code>scanf</code> 很像：</p>
+<p><strong>代码 18-9 <code>read_dir_entries</code> 测试（kernel/main.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">entries</span><span class="p">;</span>
+<span class="w">    </span><span class="n">fileinfo_t</span><span class="w"> </span><span class="o">*</span><span class="n">root_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">read_dir_entries</span><span class="p">(</span><span class="o">&amp;</span><span class="n">entries</span><span class="p">);</span><span class="w"> </span><span class="c1">// 用这两行替换掉 fat16_format_hd();</span>
+</code></pre></div></p>
+<p>作为测试，我们来新建一个文件 <code>ilovehon.kai</code>（没什么别的意思，名字你可以随便换，但必须遵循上面提到的 8.3 文件名规则），并填充 512 个 A 和 512 个 B（同样只是测试，内容也可以随便换）：</p>
+<p><img alt="" src="../images/graph-18-5.png" /></p>
+<p>（图 18-5 创建文件）</p>
+<p>用 <code>ftcopy</code> 命令将文件写入虚拟硬盘 <code>hd.img</code>：</p>
+<p><img alt="" src="../images/graph-18-6.png" /></p>
+<p>（图 18-6 写入虚拟硬盘，这里用 ftls 确认写入成功）</p>
+<p>扩写上面的测试代码：</p>
+<p><strong>代码 18-10 一个啥都没有的 <code>ls</code>（kernel/main.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">entries</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="n">printk</span><span class="p">(</span><span class="s">&quot;%s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">root_dir</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">name</span><span class="p">);</span>
+<span class="w">    </span><span class="n">kfree</span><span class="p">(</span><span class="n">root_dir</span><span class="p">);</span><span class="w"> </span><span class="c1">// 前面read的时候用的malloc分配，这里用free释放</span>
+</code></pre></div></p>
+<p>为什么不需要再 <code>printk</code> 一遍 <code>ext</code> 呢？这是因为 <code>name</code> 和 <code>ext</code> 之间并没有一个明确的 \0 作为分界，printk 在输出 <code>name</code> 的同时就会输出 <code>ext</code>。</p>
+<p>编译，运行，效果如下：
+<img alt="" src="../images/graph-18-7.png" /></p>
+<p>（图 18-7 输出的文件名）</p>
+<p>注意到，将 <code>ilovehon.kai</code> 手工转化为 8.3 文件名也为 <code>ILOVEHONKAI</code>，因此可知 <code>read_dir_entries</code> 实现成功。</p>
+<p>下面就可以正式开始创建文件的操作了。想要创建一个文件，和格式化出一个文件系统是类似的，只需要把 <code>fileinfo_t</code> 结构体当中的各个成员分别填写好就可以。</p>
+<p>目前来看，我们总共需要填入的东西里已经有些可以完成或忽略：填入 <code>name</code> 和 <code>ext</code> 的过程已经由 <code>lfn2sfn</code> 实现了；而 <code>type</code> 只需要填上 <code>0x20</code>，<code>reserved</code>、<code>clustno</code> 和 <code>size</code> 都设置为 0 即可。那么，就只剩下 <code>time</code> 和 <code>date</code> 了。</p>
+<p>微软对 <code>time</code> 和 <code>date</code> 的编码如下：</p>
+<p><code>time</code>：低 5 位为秒，中 6 位为分，高 5 位为时；</p>
+<p><code>date</code>：低 5 位为日，中 4 位为月，高 7 位为年。其中，年份要减去 1980，意义不明。</p>
+<p>在上一节的基础设施建设部分，我们已经完成了 RTC，可以畅通无阻地获取目前的时间。那么，实现文件创建的基本条件已经成熟，直接开写：</p>
+<p><strong>代码 18-11 创建文件（fs/fat16.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="c1">// 创建文件</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">fat16_create_file</span><span class="p">(</span><span class="n">fileinfo_t</span><span class="w"> </span><span class="o">*</span><span class="n">finfo</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">filename</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">filename</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mh">0xe5</span><span class="p">)</span><span class="w"> </span><span class="n">filename</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x05</span><span class="p">;</span><span class="w"> </span><span class="c1">// 如上，若第一个字节为 0xe5，需要更换为 0x05</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">sfn</span><span class="p">[</span><span class="mi">20</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="p">};</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">ret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">lfn2sfn</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span><span class="w"> </span><span class="n">sfn</span><span class="p">);</span><span class="w"> </span><span class="c1">// 将文件名转换为8.3文件名</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">ret</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span><span class="w"> </span><span class="c1">// 文件名不符合8.3规范，返回</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">entries</span><span class="p">;</span>
+<span class="w">    </span><span class="n">fileinfo_t</span><span class="w"> </span><span class="o">*</span><span class="n">root_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">read_dir_entries</span><span class="p">(</span><span class="o">&amp;</span><span class="n">entries</span><span class="p">);</span><span class="w"> </span><span class="c1">// 读取所有根目录项</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">free_slot</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">entries</span><span class="p">;</span><span class="w"> </span><span class="c1">// 默认的空闲位置是最后一个</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">entries</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">memcmp</span><span class="p">(</span><span class="n">root_dir</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">sfn</span><span class="p">,</span><span class="w"> </span><span class="mi">8</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">!</span><span class="n">memcmp</span><span class="p">(</span><span class="n">root_dir</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">ext</span><span class="p">,</span><span class="w"> </span><span class="n">sfn</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">8</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">))</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// 文件名和扩展名都一样</span>
+<span class="w">            </span><span class="n">kfree</span><span class="p">(</span><span class="n">root_dir</span><span class="p">);</span><span class="w"> </span><span class="c1">// 已经有了就不用创建了</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">root_dir</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">name</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mh">0xe5</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// 已经删除（文件名第一个字节是0xe5）</span>
+<span class="w">            </span><span class="n">free_slot</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">i</span><span class="p">;</span><span class="w"> </span><span class="c1">// 那就把这里当成空闲位置</span>
+<span class="w">            </span><span class="k">break</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">free_slot</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">MAX_FILE_NUM</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// 如果空闲位置已经到达根目录末尾</span>
+<span class="w">        </span><span class="n">kfree</span><span class="p">(</span><span class="n">root_dir</span><span class="p">);</span><span class="w"> </span><span class="c1">// 没地方创建也就不用创建了</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="c1">// 开始填入fileinfo_t对应的项</span>
+<span class="w">    </span><span class="n">memcpy</span><span class="p">(</span><span class="n">root_dir</span><span class="p">[</span><span class="n">free_slot</span><span class="p">].</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">sfn</span><span class="p">,</span><span class="w"> </span><span class="mi">8</span><span class="p">);</span><span class="w"> </span><span class="c1">// sfn为name与ext的合体，前8个字节是name</span>
+<span class="w">    </span><span class="n">memcpy</span><span class="p">(</span><span class="n">root_dir</span><span class="p">[</span><span class="n">free_slot</span><span class="p">].</span><span class="n">ext</span><span class="p">,</span><span class="w"> </span><span class="n">sfn</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">8</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">);</span><span class="w"> </span><span class="c1">// 后3个字节是ext</span>
+<span class="w">    </span><span class="n">root_dir</span><span class="p">[</span><span class="n">free_slot</span><span class="p">].</span><span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x20</span><span class="p">;</span><span class="w"> </span><span class="c1">// 类型为0x20（正常文件）</span>
+<span class="w">    </span><span class="n">root_dir</span><span class="p">[</span><span class="n">free_slot</span><span class="p">].</span><span class="n">clustno</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="c1">// 没有内容，所以没有簇号（同样放在下一节讲）</span>
+<span class="w">    </span><span class="n">root_dir</span><span class="p">[</span><span class="n">free_slot</span><span class="p">].</span><span class="n">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="c1">// 没有内容，所以大小为0</span>
+<span class="w">    </span><span class="n">memset</span><span class="p">(</span><span class="n">root_dir</span><span class="p">[</span><span class="n">free_slot</span><span class="p">].</span><span class="n">reserved</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">);</span><span class="w"> </span><span class="c1">// 将预留部分全部设为0</span>
+<span class="w">    </span><span class="n">current_time_t</span><span class="w"> </span><span class="n">ctime</span><span class="p">;</span>
+<span class="w">    </span><span class="n">get_current_time</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ctime</span><span class="p">);</span><span class="w"> </span><span class="c1">// 获取当前时间</span>
+<span class="w">    </span><span class="c1">// 按照前文所说依次填入date和time</span>
+<span class="w">    </span><span class="n">root_dir</span><span class="p">[</span><span class="n">free_slot</span><span class="p">].</span><span class="n">date</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">((</span><span class="n">ctime</span><span class="p">.</span><span class="n">year</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1980</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">9</span><span class="p">)</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="p">(</span><span class="n">ctime</span><span class="p">.</span><span class="n">month</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">5</span><span class="p">)</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">ctime</span><span class="p">.</span><span class="n">day</span><span class="p">;</span>
+<span class="w">    </span><span class="n">root_dir</span><span class="p">[</span><span class="n">free_slot</span><span class="p">].</span><span class="n">time</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">ctime</span><span class="p">.</span><span class="n">hour</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">11</span><span class="p">)</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="p">(</span><span class="n">ctime</span><span class="p">.</span><span class="n">min</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">5</span><span class="p">)</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">ctime</span><span class="p">.</span><span class="n">sec</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">finfo</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="n">finfo</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">root_dir</span><span class="p">[</span><span class="n">free_slot</span><span class="p">];</span><span class="w"> </span><span class="c1">// 创建完了不能不管，传给finfo留着</span>
+<span class="w">    </span><span class="n">hd_write</span><span class="p">(</span><span class="n">ROOT_DIR_START_LBA</span><span class="p">,</span><span class="w"> </span><span class="n">ROOT_DIR_SECTORS</span><span class="p">,</span><span class="w"> </span><span class="n">root_dir</span><span class="p">);</span><span class="w"> </span><span class="c1">// 将新的根目录区写回硬盘</span>
+<span class="w">    </span><span class="n">kfree</span><span class="p">(</span><span class="n">root_dir</span><span class="p">);</span><span class="w"> </span><span class="c1">// 成功完成</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>具体细节都放在代码中了，寻找空余位置和判断文件是否存在的代码反而占了大多数，真正创建文件的代码只有最后的那十几行。</p>
+<p>最后是打开文件，我们只需要根据文件名找到对应的 <code>fileinfo_t</code> 返回就可以了。</p>
+<p><strong>代码 18-12 打开文件（fs/fat16.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="c1">// 打开文件</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">fat16_open_file</span><span class="p">(</span><span class="n">fileinfo_t</span><span class="w"> </span><span class="o">*</span><span class="n">finfo</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">filename</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">sfn</span><span class="p">[</span><span class="mi">20</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="p">};</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">ret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">lfn2sfn</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span><span class="w"> </span><span class="n">sfn</span><span class="p">);</span><span class="w"> </span><span class="c1">// 将原文件名转换为8.3</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">ret</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span><span class="w"> </span><span class="c1">// 转换失败，不用打开了</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">entries</span><span class="p">;</span>
+<span class="w">    </span><span class="n">fileinfo_t</span><span class="w"> </span><span class="o">*</span><span class="n">root_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">read_dir_entries</span><span class="p">(</span><span class="o">&amp;</span><span class="n">entries</span><span class="p">);</span><span class="w"> </span><span class="c1">// 读取所有目录项</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">file_index</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">entries</span><span class="p">;</span><span class="w"> </span><span class="c1">// filename对应文件的索引</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">entries</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">memcmp</span><span class="p">(</span><span class="n">root_dir</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">sfn</span><span class="p">,</span><span class="w"> </span><span class="mi">8</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">!</span><span class="n">memcmp</span><span class="p">(</span><span class="n">root_dir</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">ext</span><span class="p">,</span><span class="w"> </span><span class="n">sfn</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">8</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">file_index</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">i</span><span class="p">;</span><span class="w"> </span><span class="c1">// 找到了</span>
+<span class="w">            </span><span class="k">break</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">file_index</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">entries</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// 如果找到了……</span>
+<span class="w">        </span><span class="o">*</span><span class="n">finfo</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">root_dir</span><span class="p">[</span><span class="n">file_index</span><span class="p">];</span><span class="w"> </span><span class="c1">// 那么把对应的文件存到finfo里</span>
+<span class="w">        </span><span class="n">kfree</span><span class="p">(</span><span class="n">root_dir</span><span class="p">);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">finfo</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">NULL</span><span class="p">;</span><span class="w"> </span><span class="c1">// 这一句实际上是没有用的</span>
+<span class="w">        </span><span class="n">kfree</span><span class="p">(</span><span class="n">root_dir</span><span class="p">);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>最后就是喜闻乐见 <del>（非常傻逼）</del> 的测试环节。打开文件配合后面的读取和写入测试效果更佳，所以这里单独测试创建文件。</p>
+<p>将刚才写的测试 <code>read_dir_entries</code> 的代码替换为：</p>
+<p><strong>代码 18-13 创建文件测试（kernel/main.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="w">    </span><span class="n">printk</span><span class="p">(</span><span class="s">&quot;create status: %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">fat16_create_file</span><span class="p">(</span><span class="nb">NULL</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;iloveado.fai&quot;</span><span class="p">));</span>
+</code></pre></div></p>
+<p>编译，运行，效果应如图所示：</p>
+<p><img alt="" src="../images/graph-18-8.png" /></p>
+<p>（图 18-8 创建文件疑似成功）</p>
+<p>在命令行中使用 <code>ftls</code> 工具，确认文件已经成功创建：</p>
+<p><img alt="" src="../images/graph-18-9.png" /></p>
+<p>（图 18-9 创建文件成功）</p>
+<p>好了，那么这一节作为我们实现 FAT16 的第一战，显然效果非常成功。下一节我们来实现文件的读取、写入和删除，从而为后续的包装打好地基。</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+        <div class="md-copyright__highlight">
+          本文档采用 <a href="https://creativecommons.org/licenses/by-sa/4.0/">知识共享 署名-相同方式共享 4.0 协议</a> 进行许可。
+        </div>
+        <div class="md-copyright__highlight">
+          Copyright &copy; 2024 Oildum. Powered by mkdocs. Special thanks to copi143 for providing the theme and scripts.
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../../..", "features": ["content.tooltips", "navigation.instant", "navigation.instant.prefetch", "navigation.instant.progress", "navigation.instant.preview", "navigation.sections", "navigation.tracking", "navigation.tabs", "navigation.path", "navigation.indexes", "navigation.top", "toc.follow", "search.suggest", "search.highlight", "search.share"], "search": "../../../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.83f73b43.min.js"></script>
+      
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+      
+    
+  </body>
+</html>

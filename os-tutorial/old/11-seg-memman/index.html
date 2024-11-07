@@ -1,0 +1,1465 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../10-irq/">
+      
+      
+        <link rel="next" href="../12-multitasking/">
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.44">
+    
+    
+      
+        <title>11 段式内存管理的实现 - Oildum/Atklom's Blog</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.0253249f.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/style.css">
+    
+      <link rel="stylesheet" href="../../../assets/highlight.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../../.." title="Oildum/Atklom&#39;s Blog" class="md-header__button md-logo" aria-label="Oildum/Atklom's Blog" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Oildum/Atklom's Blog
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              11 段式内存管理的实现
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="分享" aria-label="分享" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+    
+  
+  主页
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../" class="md-tabs__link">
+          
+  
+    
+  
+  操作系统教程
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="Oildum/Atklom&#39;s Blog" class="md-nav__button md-logo" aria-label="Oildum/Atklom's Blog" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Oildum/Atklom's Blog
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    主页
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    操作系统教程
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            操作系统教程
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    旧教程
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            旧教程
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../00-beforestart/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    00 开始之前
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../01-first-boot-sector/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    01 第一个引导扇区
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../02-fat12-file-system/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    02 FAT12 文件系统
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../03-find-loader/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    03 查找 Loader
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../04-load-and-jump-into-loader/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    04 加载并跳入 Loader
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../05-read-kernel-and-into-32/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    05 读取内核并进入保护模式
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../06-relocate-and-jump-into-kernel/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    06 重新放置内核并进入内核
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../07-print-impl/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    07 实现我们自己的打印函数
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../08-we-love-makefile/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    08 整理文件
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../09-gdtidt/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    09 重设 GDT、IDT
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../10-irq/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    10 接收外部中断，从时钟开始
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    11 段式内存管理的实现
+  </span>
+  
+
+      </a>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../12-multitasking/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    12 多任务
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../13-kbd-part0/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    13 终于可以打字了——键盘驱动（上）
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../14-kbd-part1/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    14 终于可以打字了——键盘驱动（下）
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../15-syscall/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    15 系统调用——应用程序与系统的交互之门
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../16-shell-d-and-i/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    16 shell的设计与实现
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../17-fat16-part0/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    17 实现FAT16文件系统（1）——基础设施建设：硬盘驱动、RTC
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../18-fat16-part1/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    18 实现FAT16文件系统（2）——格式化、打开文件、创建文件
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../19-fat16-part2/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    19 实现FAT16文件系统（3）——读取文件、写入文件、删除文件
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../20-fat16-part3/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    20 实现FAT16文件系统（4）——上层包装
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../21-fat16-part4/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    21 FAT16 文件系统实战——抛弃软盘，从硬盘启动
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../22-first-app/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    22 第一个应用程序
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../23-c-app-part0/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    23 C语言应用程序（上）
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../24-c-app-part1/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    24 C语言应用程序（下）
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../new/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    新教程
+  </span>
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            新教程
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  <h1>11 段式内存管理的实现</h1>
+
+<p>虽然说时钟中断往后的最合理的主题就是多任务，但从目录可以看出来，多任务是下一节的内容，本节我们首先实现一个极其简单的内存管理系统。</p>
+<p>什么是内存管理？内存管理，就是管理内存（什么废话文学）。直接解释其含义有点困难，不过，内存的分配和释放，就是内存管理的主要部分。</p>
+<p>本节内容大部分参考自《30天自制操作系统》，有原书的建议结合原书交叉参考，毕竟我这个写出来的东西和人家原书肯定是比不了的。</p>
+<p>好了，我们开始吧。首先，既然要管理内存，必然要知道内存总共有多大。在 BIOS 中，有非常多的方法来做到（均基于 <code>int 15h</code>，根据 <code>ax</code> 的值为 <code>0xe820</code>、<code>0xe801</code> 和 <code>0x66</code> 分别有不同的行为），但是现在已经到了保护模式，没法用 BIOS 了，怎么办？</p>
+<p>换个思路想：32位下内存最多为4GB，如果往没有内存的地方写入一些字节，再读出来的时候，不管长什么样，肯定不会是写入时候的样子。所以，我们只需要指定一个开头和结尾，对这一段区域的所有内存进行试写，如果遇到了边界，那么直接退出，并报告边界值即可。</p>
+<p>看上去很美好，但intel的设计更为前卫，为了增加访问内存的效率，486之后的intel cpu加入了缓存功能。在缓存中读写自然是没有意义的，因此首先要检测是否在486以上，如果是，那么就要把缓存关掉。</p>
+<p>因此，我们新建 <code>memory.c</code>，简单写一下内存检测的部分。</p>
+<p><strong>代码 11-1 内存检测（kernel/memory.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;common.h&quot;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;memory.h&quot;</span>
+
+<span class="cp">#define EFLAGS_AC_BIT 0x00040000</span>
+<span class="cp">#define CR0_CACHE_DISABLE 0x60000000</span>
+
+<span class="k">extern</span><span class="w"> </span><span class="kt">uint32_t</span><span class="w"> </span><span class="nf">load_eflags</span><span class="p">();</span>
+<span class="k">extern</span><span class="w"> </span><span class="kt">uint32_t</span><span class="w"> </span><span class="nf">load_cr0</span><span class="p">();</span>
+<span class="k">extern</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">store_eflags</span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">);</span>
+<span class="k">extern</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">store_cr0</span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">);</span>
+
+<span class="k">static</span><span class="w"> </span><span class="kt">uint32_t</span><span class="w"> </span><span class="nf">memtest_sub</span><span class="p">(</span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">start</span><span class="p">,</span><span class="w"> </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">end</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="o">*</span><span class="n">p</span><span class="p">,</span><span class="w"> </span><span class="n">old</span><span class="p">,</span><span class="w"> </span><span class="n">pat0</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0xaa55aa55</span><span class="p">,</span><span class="w"> </span><span class="n">pat1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x55aa55aa</span><span class="p">;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">start</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">end</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mh">0x1000</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">uint32_t</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mh">0xffc</span><span class="p">);</span><span class="w"> </span><span class="c1">// 每4KB检查最后4个字节</span>
+<span class="w">        </span><span class="n">old</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">*</span><span class="n">p</span><span class="p">;</span><span class="w"> </span><span class="c1">// 记住修改前的值</span>
+<span class="w">        </span><span class="o">*</span><span class="n">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pat0</span><span class="p">;</span><span class="w"> </span><span class="c1">// 试写</span>
+<span class="w">        </span><span class="o">*</span><span class="n">p</span><span class="w"> </span><span class="o">^=</span><span class="w"> </span><span class="mh">0xffffffff</span><span class="p">;</span><span class="w"> </span><span class="c1">// 翻转</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">p</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">pat1</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// ~pat0 = pat1，翻转之后如果不是pat1则写入失败</span>
+<span class="w">            </span><span class="o">*</span><span class="n">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">old</span><span class="p">;</span><span class="w"> </span><span class="c1">// 写回去</span>
+<span class="w">            </span><span class="k">break</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="o">*</span><span class="n">p</span><span class="w"> </span><span class="o">^=</span><span class="w"> </span><span class="mh">0xffffffff</span><span class="p">;</span><span class="w"> </span><span class="c1">// 再翻转</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">p</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">pat0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// 两次翻转应该转回去，如果不是pat0则写入失败</span>
+<span class="w">            </span><span class="o">*</span><span class="n">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">old</span><span class="p">;</span><span class="w"> </span><span class="c1">// 写回去</span>
+<span class="w">            </span><span class="k">break</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="o">*</span><span class="n">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">old</span><span class="p">;</span><span class="w"> </span><span class="c1">// 试写完毕，此4KB可用，恢复为修改前的值</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">i</span><span class="p">;</span><span class="w"> </span><span class="c1">// 返回内存容量</span>
+<span class="p">}</span>
+
+<span class="k">static</span><span class="w"> </span><span class="kt">uint32_t</span><span class="w"> </span><span class="nf">memtest</span><span class="p">(</span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">start</span><span class="p">,</span><span class="w"> </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">end</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">flg486</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">eflags</span><span class="p">,</span><span class="w"> </span><span class="n">cr0</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">eflags</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">load_eflags</span><span class="p">();</span>
+<span class="w">    </span><span class="n">eflags</span><span class="w"> </span><span class="o">|=</span><span class="w"> </span><span class="n">EFLAGS_AC_BIT</span><span class="p">;</span><span class="w"> </span><span class="c1">// AC-bit = 1</span>
+<span class="w">    </span><span class="n">store_eflags</span><span class="p">(</span><span class="n">eflags</span><span class="p">);</span>
+<span class="w">    </span><span class="n">eflags</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">load_eflags</span><span class="p">();</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="n">eflags</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="n">EFLAGS_AC_BIT</span><span class="p">)</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="n">flg486</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="c1">// 486的CPU会把AC位当回事，但386的则会把AC位始终置0</span>
+<span class="w">    </span><span class="c1">// 这样就可以判断CPU是否在486以上</span>
+<span class="w">    </span><span class="c1">// 恢复回去</span>
+<span class="w">    </span><span class="n">eflags</span><span class="w"> </span><span class="o">&amp;=</span><span class="w"> </span><span class="o">~</span><span class="n">EFLAGS_AC_BIT</span><span class="p">;</span><span class="w"> </span><span class="c1">// AC-bit = 0</span>
+<span class="w">    </span><span class="n">store_eflags</span><span class="p">(</span><span class="n">eflags</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">flg486</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">cr0</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">load_cr0</span><span class="p">();</span>
+<span class="w">        </span><span class="n">cr0</span><span class="w"> </span><span class="o">|=</span><span class="w"> </span><span class="n">CR0_CACHE_DISABLE</span><span class="p">;</span><span class="w"> </span><span class="c1">// 禁用缓存</span>
+<span class="w">        </span><span class="n">store_cr0</span><span class="p">(</span><span class="n">cr0</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">memtest_sub</span><span class="p">(</span><span class="n">start</span><span class="p">,</span><span class="w"> </span><span class="n">end</span><span class="p">);</span><span class="w"> </span><span class="c1">// 真正的内存探测函数</span>
+
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">flg486</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">cr0</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">load_cr0</span><span class="p">();</span>
+<span class="w">        </span><span class="n">cr0</span><span class="w"> </span><span class="o">&amp;=</span><span class="w"> </span><span class="o">~</span><span class="n">CR0_CACHE_DISABLE</span><span class="p">;</span><span class="w"> </span><span class="c1">// 允许缓存</span>
+<span class="w">        </span><span class="n">store_cr0</span><span class="p">(</span><span class="n">cr0</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">i</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>配合注释应该不难理解……吧。为了加快效率，<code>memtest_sub</code> 每次只检测每一个 4KB 的开头。<code>memtest</code> 则是对 <code>memtest_sub</code> 的封装，加上了判断486、关闭缓存等的过程。</p>
+<p>在这里用到了对 eflags 和 cr0 进行操作的四个汇编函数，代码如下：</p>
+<p><strong>代码 11-2 操作eflags和cr0的汇编（lib/nasmfunc.asm）</strong>
+<div class="highlight"><pre><span></span><code><span class="err">[</span><span class="nf">global</span><span class="w"> </span><span class="no">load_eflags</span><span class="p">]</span>
+
+<span class="nl">load_eflags:</span>
+<span class="w">    </span><span class="nf">pushfd</span><span class="w"> </span><span class="c1">; eflags寄存器只能用pushfd/popfd操作，将eflags入栈/将栈中内容弹入eflags</span>
+<span class="w">    </span><span class="nf">pop</span><span class="w"> </span><span class="no">eax</span><span class="w"> </span><span class="c1">; eax = eflags;</span>
+<span class="w">    </span><span class="nf">ret</span><span class="w"> </span><span class="c1">; return eax;</span>
+
+<span class="err">[</span><span class="nf">global</span><span class="w"> </span><span class="no">store_eflags</span><span class="p">]</span>
+
+<span class="nl">store_eflags:</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">eax</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="no">esp</span><span class="w"> </span><span class="err">+</span><span class="w"> </span><span class="mi">4</span><span class="p">]</span><span class="w"> </span><span class="c1">; 获取参数</span>
+<span class="w">    </span><span class="nf">push</span><span class="w"> </span><span class="no">eax</span>
+<span class="w">    </span><span class="nf">popfd</span><span class="w"> </span><span class="c1">; eflags = eax;</span>
+<span class="w">    </span><span class="nf">ret</span>
+
+<span class="err">[</span><span class="nf">global</span><span class="w"> </span><span class="no">load_cr0</span><span class="p">]</span>
+
+<span class="nl">load_cr0:</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">eax</span><span class="p">,</span><span class="w"> </span><span class="no">cr0</span><span class="w"> </span><span class="c1">; cr0只能和eax之间mov</span>
+<span class="w">    </span><span class="nf">ret</span><span class="w"> </span><span class="c1">; return cr0;</span>
+
+<span class="err">[</span><span class="nf">global</span><span class="w"> </span><span class="no">store_cr0</span><span class="p">]</span>
+
+<span class="nl">store_cr0:</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">eax</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="no">esp</span><span class="w"> </span><span class="err">+</span><span class="w"> </span><span class="mi">4</span><span class="p">]</span><span class="w"> </span><span class="c1">; 获取参数</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">cr0</span><span class="p">,</span><span class="w"> </span><span class="no">eax</span><span class="w"> </span><span class="c1">; 赋值cr0</span>
+<span class="w">    </span><span class="nf">ret</span>
+</code></pre></div></p>
+<p>程序写好了，怎么测试呢？看看这样行不行：</p>
+<p><strong>代码 11-3 init_memory（kernel/memory.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="kt">void</span><span class="w"> </span><span class="nf">init_memory</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">memtotal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">memtest</span><span class="p">(</span><span class="mh">0x00400000</span><span class="p">,</span><span class="w"> </span><span class="mh">0xbfffffff</span><span class="p">);</span><span class="w"> </span><span class="c1">// 检测4MB~3GB范围内的内存</span>
+<span class="w">    </span><span class="n">monitor_write</span><span class="p">(</span><span class="s">&quot;memory  &quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="n">monitor_write_dec</span><span class="p">(</span><span class="n">memtotal</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1024</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1024</span><span class="p">);</span>
+<span class="w">    </span><span class="n">monitor_write</span><span class="p">(</span><span class="s">&quot;MB</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span><span class="w"> </span><span class="c1">// 以MB形式打印出来</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p><strong>代码 11-4 头文件（include/memory.h）</strong>
+<div class="highlight"><pre><span></span><code><span class="cp">#ifndef _MEMORY_H_</span>
+<span class="cp">#define _MEMORY_H_</span>
+
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;common.h&quot;</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">init_memory</span><span class="p">();</span>
+
+<span class="cp">#endif</span>
+</code></pre></div></p>
+<p><strong>代码 11-5 测试用main（kernel/main.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;monitor.h&quot;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;gdtidt.h&quot;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;memory.h&quot;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;timer.h&quot;</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">kernel_main</span><span class="p">()</span><span class="w"> </span><span class="c1">// kernel.asm会跳转到这里</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">monitor_clear</span><span class="p">();</span><span class="w"> </span><span class="c1">// 先清屏</span>
+<span class="w">    </span><span class="n">init_gdtidt</span><span class="p">();</span>
+<span class="w">    </span><span class="n">init_timer</span><span class="p">(</span><span class="mi">50</span><span class="p">);</span>
+<span class="w">    </span><span class="n">init_memory</span><span class="p">();</span>
+<span class="w">    </span><span class="n">monitor_write</span><span class="p">(</span><span class="s">&quot;Hello, kernel world!</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="c1">// 验证write_hex和write_dec，由于没有printf，这一步十分烦人</span>
+<span class="w">    </span><span class="n">monitor_write_hex</span><span class="p">(</span><span class="mh">0x114514</span><span class="p">);</span>
+<span class="w">    </span><span class="n">monitor_write</span><span class="p">(</span><span class="s">&quot; = &quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="n">monitor_write_dec</span><span class="p">(</span><span class="mh">0x114514</span><span class="p">);</span>
+<span class="w">    </span><span class="n">monitor_write</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="c1">//asm(&quot;sti&quot;);</span>
+
+<span class="w">    </span><span class="c1">// 悬停</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>编译，运行，效果如图所示：
+<img alt="" src="../images/graph-11-1.png" /></p>
+<p>（图 11-1 内存检测成功）</p>
+<p>我们的检测程序报告共有128MB内存，这与 QEMU 的默认设置相符。如果读者不放心，可以自行在 <code>qemu</code> 的参数中加入 <code>-m &lt;memsize&gt;</code> 参数指定内存大小，其中 <code>memsize</code> 以MB为单位。</p>
+<p>检测完了，下面就该正式进行管理了。我目前看到的所有教程中，大致可将内存管理方案分为三种：位图型，表格型以及混合型。</p>
+<p>位图型，是指用位图的方式来管理内存。位图其实就是一个字符数组，每一个数组的每一位分别代表一个管理单元（通常为4KB），若要分配连续多个4KB的内存，则需要操控位图的单独位来实现。这种方法不仅说起来麻烦，写起来也麻烦，因此不考虑了。</p>
+<p>表格型就非常好理解了，就是把可用内存信息放在一个一个的表项中，每一个项的内容包括起始地址、内存大小等信息。在这里为了偷懒，就只包括这两项信息了。事实上，以UEFI为基础的64位操作系统内核中，离不开与这种表格的交道（在此不详谈了，更何况64位的基本属于混合型）。</p>
+<p>混合型比这两种还要复杂，也不多考虑了。</p>
+<p>综上，我们最终选择了表格型的方式进行管理。如果硬要写一段代码的话，大致是这样的：</p>
+<p><strong>代码 11-6 表格型内存管理方案示例（无文件）</strong>
+<div class="highlight"><pre><span></span><code><span class="c1">// 定义</span>
+<span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">FREEINFO</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">addr</span><span class="p">,</span><span class="w"> </span><span class="n">size</span><span class="p">;</span>
+<span class="p">}</span><span class="w"> </span><span class="n">freeinfo_t</span><span class="p">;</span>
+
+<span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">MEMMAN</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">frees</span><span class="p">;</span>
+<span class="w">    </span><span class="n">freeinfo_t</span><span class="w"> </span><span class="n">free</span><span class="p">[</span><span class="mi">1000</span><span class="p">];</span>
+<span class="p">}</span><span class="w"> </span><span class="n">memman_t</span><span class="p">;</span>
+<span class="c1">// 初始化</span>
+<span class="n">memman_t</span><span class="w"> </span><span class="n">memman</span><span class="p">;</span>
+<span class="n">memman</span><span class="p">.</span><span class="n">frees</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="n">memman</span><span class="p">.</span><span class="n">free</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">addr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x7c00</span><span class="p">;</span>
+<span class="n">memman</span><span class="p">.</span><span class="n">free</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x400</span><span class="p">;</span>
+<span class="c1">// 分配</span>
+<span class="n">memman</span><span class="p">.</span><span class="n">free</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">addr</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">size</span><span class="p">;</span>
+<span class="n">memman</span><span class="p">.</span><span class="n">free</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">size</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="n">size</span><span class="p">;</span>
+<span class="c1">// 释放</span>
+<span class="n">memman</span><span class="p">.</span><span class="n">free</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">addr</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="n">size</span><span class="p">;</span>
+<span class="n">memman</span><span class="p">.</span><span class="n">free</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">size</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">size</span><span class="p">;</span>
+</code></pre></div></p>
+<p>可以看出来，不管是初始化、分配、还是释放，时间复杂度都是O(1)级别的。虽然表项一多，释放的代码也会跟着多，但总体而言，和释放内存多少并没有关系。如果用位图型的话，那分配和释放多少内存就要写多少个“1”和“0”，这么一看，表格型的时间复杂度也要低一些。</p>
+<p>好了，我们开始吧。首先把上面的表项依样画葫芦抄下来：</p>
+<p><strong>代码 11-7 表格型内存管理数据结构的定义（include/memory.h）</strong>
+<div class="highlight"><pre><span></span><code><span class="cp">#define MEMMAN_FREES 4090</span>
+
+<span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">FREEINFO</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">addr</span><span class="p">,</span><span class="w"> </span><span class="n">size</span><span class="p">;</span>
+<span class="p">}</span><span class="w"> </span><span class="n">freeinfo_t</span><span class="p">;</span>
+
+<span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">MEMMAN</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">frees</span><span class="p">;</span>
+<span class="w">    </span><span class="n">freeinfo_t</span><span class="w"> </span><span class="n">free</span><span class="p">[</span><span class="n">MEMMAN_FREES</span><span class="p">];</span>
+<span class="p">}</span><span class="w"> </span><span class="n">memman_t</span><span class="p">;</span>
+</code></pre></div></p>
+<p>紧接着，是初始化、总数据和分配的代码，由于十分简单，合并为同一个部分：</p>
+<p><strong>代码 11-8 表格初始化、表格总数据和内存分配（kernel/memory.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">memman_init</span><span class="p">(</span><span class="n">memman_t</span><span class="w"> </span><span class="o">*</span><span class="n">man</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">man</span><span class="o">-&gt;</span><span class="n">frees</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">static</span><span class="w"> </span><span class="kt">uint32_t</span><span class="w"> </span><span class="nf">memman_total</span><span class="p">(</span><span class="n">memman_t</span><span class="w"> </span><span class="o">*</span><span class="n">man</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">man</span><span class="o">-&gt;</span><span class="n">frees</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">man</span><span class="o">-&gt;</span><span class="n">free</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">size</span><span class="p">;</span><span class="w"> </span><span class="c1">// 剩余内存总和</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">t</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">static</span><span class="w"> </span><span class="kt">uint32_t</span><span class="w"> </span><span class="nf">memman_alloc</span><span class="p">(</span><span class="n">memman_t</span><span class="w"> </span><span class="o">*</span><span class="n">man</span><span class="p">,</span><span class="w"> </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">size</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">a</span><span class="p">;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">man</span><span class="o">-&gt;</span><span class="n">frees</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">man</span><span class="o">-&gt;</span><span class="n">free</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">size</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">size</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// 找到了足够的内存</span>
+<span class="w">            </span><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">man</span><span class="o">-&gt;</span><span class="n">free</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">addr</span><span class="p">;</span>
+<span class="w">            </span><span class="n">man</span><span class="o">-&gt;</span><span class="n">free</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">addr</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">size</span><span class="p">;</span><span class="w"> </span><span class="c1">// addr后移，因为原来的addr被使用了</span>
+<span class="w">            </span><span class="n">man</span><span class="o">-&gt;</span><span class="n">free</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">size</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="n">size</span><span class="p">;</span><span class="w"> </span><span class="c1">// size也要减掉</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">man</span><span class="o">-&gt;</span><span class="n">free</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">size</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// 这一条size被分配完了</span>
+<span class="w">                </span><span class="n">man</span><span class="o">-&gt;</span><span class="n">frees</span><span class="o">--</span><span class="p">;</span><span class="w"> </span><span class="c1">// 减一条frees</span>
+<span class="w">                </span><span class="k">for</span><span class="w"> </span><span class="p">(;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">man</span><span class="o">-&gt;</span><span class="n">frees</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="n">man</span><span class="o">-&gt;</span><span class="n">free</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">man</span><span class="o">-&gt;</span><span class="n">free</span><span class="p">[</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">];</span><span class="w"> </span><span class="c1">// 各free前移</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">a</span><span class="p">;</span><span class="w"> </span><span class="c1">// 返回</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="c1">// 无可用空间</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>内存分配和总数据统计就不多解释了，分配的操作大部分都已经解释过，也不多说。</p>
+<p>接下来是内存释放，这一部分比较复杂。</p>
+<p><strong>代码 11-9 内存释放（kernel/memory.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="nf">memman_free</span><span class="p">(</span><span class="n">memman_t</span><span class="w"> </span><span class="o">*</span><span class="n">man</span><span class="p">,</span><span class="w"> </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">addr</span><span class="p">,</span><span class="w"> </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">size</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">j</span><span class="p">;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">man</span><span class="o">-&gt;</span><span class="n">frees</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 各free按addr升序排列</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">man</span><span class="o">-&gt;</span><span class="n">free</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">addr</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">addr</span><span class="p">)</span><span class="w"> </span><span class="k">break</span><span class="p">;</span><span class="w"> </span><span class="c1">// 找到位置了！</span>
+<span class="w">        </span><span class="c1">// 现在的这个位置是第一个在addr之后的位置，有man-&gt;free[i - 1].addr &lt; addr &lt; man-&gt;free[i].addr</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">man</span><span class="o">-&gt;</span><span class="n">free</span><span class="p">[</span><span class="n">i</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">].</span><span class="n">addr</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">man</span><span class="o">-&gt;</span><span class="n">free</span><span class="p">[</span><span class="n">i</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">].</span><span class="n">size</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">addr</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// 可以和前面的可用部分合并</span>
+<span class="w">            </span><span class="n">man</span><span class="o">-&gt;</span><span class="n">free</span><span class="p">[</span><span class="n">i</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">].</span><span class="n">size</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">size</span><span class="p">;</span><span class="w"> </span><span class="c1">// 并入</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">man</span><span class="o">-&gt;</span><span class="n">frees</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">addr</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">man</span><span class="o">-&gt;</span><span class="n">free</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">addr</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="c1">// 可以与后面的可用部分合并</span>
+<span class="w">                    </span><span class="n">man</span><span class="o">-&gt;</span><span class="n">free</span><span class="p">[</span><span class="n">i</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">].</span><span class="n">size</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">man</span><span class="o">-&gt;</span><span class="n">free</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">size</span><span class="p">;</span>
+<span class="w">                    </span><span class="c1">// man-&gt;free[i]删除不用</span>
+<span class="w">                    </span><span class="n">man</span><span class="o">-&gt;</span><span class="n">frees</span><span class="o">--</span><span class="p">;</span><span class="w"> </span><span class="c1">// frees减1</span>
+<span class="w">                    </span><span class="k">for</span><span class="w"> </span><span class="p">(;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">man</span><span class="o">-&gt;</span><span class="n">frees</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                        </span><span class="n">man</span><span class="o">-&gt;</span><span class="n">free</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">man</span><span class="o">-&gt;</span><span class="n">free</span><span class="p">[</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">];</span><span class="w"> </span><span class="c1">// 前移</span>
+<span class="w">                    </span><span class="p">}</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="c1">// free完毕</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="c1">// 不能与前面的合并</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">man</span><span class="o">-&gt;</span><span class="n">frees</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">addr</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">man</span><span class="o">-&gt;</span><span class="n">free</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">addr</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// 可以与后面的可用部分合并</span>
+<span class="w">            </span><span class="n">man</span><span class="o">-&gt;</span><span class="n">free</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">addr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">addr</span><span class="p">;</span>
+<span class="w">            </span><span class="n">man</span><span class="o">-&gt;</span><span class="n">free</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">size</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">size</span><span class="p">;</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="c1">// 成功合并</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="c1">// 两边都合并不了</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">man</span><span class="o">-&gt;</span><span class="n">frees</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">MEMMAN_FREES</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// free[i]之后的后移，腾出空间</span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">j</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">man</span><span class="o">-&gt;</span><span class="n">frees</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">i</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="o">--</span><span class="p">)</span><span class="w"> </span><span class="n">man</span><span class="o">-&gt;</span><span class="n">free</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">man</span><span class="o">-&gt;</span><span class="n">free</span><span class="p">[</span><span class="n">j</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">];</span>
+<span class="w">        </span><span class="n">man</span><span class="o">-&gt;</span><span class="n">frees</span><span class="o">++</span><span class="p">;</span>
+<span class="w">        </span><span class="n">man</span><span class="o">-&gt;</span><span class="n">free</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">addr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">addr</span><span class="p">;</span>
+<span class="w">        </span><span class="n">man</span><span class="o">-&gt;</span><span class="n">free</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">size</span><span class="p">;</span><span class="w"> </span><span class="c1">// 更新当前地址和大小</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="c1">// 成功合并</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="c1">// 无free可用且无法合并</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span><span class="w"> </span><span class="c1">// 失败</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>释放的部分比上面三个部分加起来还长，解释一下。</p>
+<p>首先，稍微分析一下就会发现，在表格中的所有表项，必然以基地址为键呈升序排列（也就是说，越往后的项，基地址也越大）。正因如此，第3~8行的判断才得以顺利进行。</p>
+<p>第9<sub>26行，是当前释放的这一段内存与前后进行合并的判断。第28</sub>35行，如果无法与前面的合并，则要进行与后面的内存合并的判断。如果不这样判断，会出现下面的情况：</p>
+<div class="highlight"><pre><span></span><code>内存表项0: 起始地址 0x400000，大小 3KB
+内存表项1: 起始地址 0x401000，大小 4KB
+
+当释放从 0x400c00 开始的 1KB 时，如果不进行判断，那么如果后续要分配 5KB 内存，便无从下手。然而，这三段内存（表项0、表项1、刚释放）实际上是以 0x400000 为起始、共计 8KB 的连续内存空间，完全可以分配 5KB 内存。
+</code></pre></div>
+<p>如果都合并不了，只好单独创建一个内存块插入在这之间。如果已经完全没有地方，只好返回-1报错了。</p>
+<p>好了，到此为止，我们仅用了不到200行代码，就完成了段式内存管理的实现——吧。在此之前，我们要对段式内存管理进行一个基本的封装。</p>
+<p>首先，现在的内存释放需要指定大小，这实在是非常不方便的一个因素。因此，我们需要开辟出一定的内存空间，供内存释放时读取大小使用。</p>
+<p>具体而言，封装后的 <code>kmalloc</code> 和 <code>kfree</code> 如下：</p>
+<p><strong>代码 11-10 最终封装内存管理（kernel/memory.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="nf">kmalloc</span><span class="p">(</span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">size</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">addr</span><span class="p">;</span>
+<span class="w">    </span><span class="n">memman_t</span><span class="w"> </span><span class="o">*</span><span class="n">memman</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">memman_t</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">MEMMAN_ADDR</span><span class="p">;</span>
+<span class="w">    </span><span class="n">addr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">memman_alloc</span><span class="p">(</span><span class="n">memman</span><span class="p">,</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">16</span><span class="p">);</span><span class="w"> </span><span class="c1">// 多分配16字节</span>
+<span class="w">    </span><span class="n">memset</span><span class="p">((</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">addr</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">16</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">addr</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">p</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="o">*</span><span class="p">((</span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">p</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">size</span><span class="p">;</span>
+<span class="w">        </span><span class="n">p</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">16</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">p</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">kfree</span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">p</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">q</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">p</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">q</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">q</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="mi">16</span><span class="p">;</span>
+<span class="w">        </span><span class="n">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">*</span><span class="p">((</span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">q</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">memman_t</span><span class="w"> </span><span class="o">*</span><span class="n">memman</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">memman_t</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">MEMMAN_ADDR</span><span class="p">;</span>
+<span class="w">    </span><span class="n">memman_free</span><span class="p">(</span><span class="n">memman</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">)</span><span class="w"> </span><span class="n">q</span><span class="p">,</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">16</span><span class="p">);</span>
+<span class="w">    </span><span class="n">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">NULL</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p><strong>代码 11-11 <code>MEMMAN_ADDR</code> 的定义（include/memory.h）</strong>
+<div class="highlight"><pre><span></span><code><span class="cp">#define MEMMAN_ADDR 0x003c0000</span>
+</code></pre></div></p>
+<p>这一部分涉及到相当晦涩的指针操作，简单解释一下。</p>
+<p>在 <code>kmalloc</code> 中，首先从一个固定的地址（0x3c0000）读出一个 <code>memman_t</code> 来，然后分配 <code>size</code> 字节的内存。注意这里还多分配了 16 个字节，这是干什么用的呢？</p>
+<p>众所周知，<code>free</code> 是不需要知道这段内存的大小的，我们希望 <code>kfree</code> 也是一样。所以，我们便需要在这段内存的一开头把大小存起来。这也就是第 351 行在干的事情：把 p 转化成 int 指针，再向它这个地址处写入大小，最后把指针后移16把大小这一块空过去。</p>
+<p>同理，在 <code>kfree</code> 中，先从地址最开头读出大小，然后从同一个 <code>memman_t</code> 处把内存释放。</p>
+<p>最后的最后，由于 <code>kmalloc</code> 和 <code>kfree</code> 都指着这块地的 <code>memman_t</code> 呢，我们需要在 <code>init_memory</code> 中初始化 <code>memman</code>。代码如下：</p>
+<p><strong>代码 11-12 初始化 <code>memman</code>（kernel/memory.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="kt">void</span><span class="w"> </span><span class="nf">init_memory</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">memtotal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">memtest</span><span class="p">(</span><span class="mh">0x00400000</span><span class="p">,</span><span class="w"> </span><span class="mh">0xbfffffff</span><span class="p">);</span>
+<span class="w">    </span><span class="n">memman_t</span><span class="w"> </span><span class="o">*</span><span class="n">memman</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">memman_t</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">MEMMAN_ADDR</span><span class="p">;</span>
+<span class="w">    </span><span class="n">memman_init</span><span class="p">(</span><span class="n">memman</span><span class="p">);</span>
+<span class="w">    </span><span class="n">memman_free</span><span class="p">(</span><span class="n">memman</span><span class="p">,</span><span class="w"> </span><span class="mh">0x400000</span><span class="p">,</span><span class="w"> </span><span class="n">memtotal</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mh">0x400000</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>同样删去了打印，因为用不到了。</p>
+<p>内存管理到此结束，我们还真验证不了它能不能用，不过，很快，我们会转入另一个更具挑战性的课题——多任务。</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+        <div class="md-copyright__highlight">
+          本文档采用 <a href="https://creativecommons.org/licenses/by-sa/4.0/">知识共享 署名-相同方式共享 4.0 协议</a> 进行许可。
+        </div>
+        <div class="md-copyright__highlight">
+          Copyright &copy; 2024 Oildum. Powered by mkdocs. Special thanks to copi143 for providing the theme and scripts.
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../../..", "features": ["content.tooltips", "navigation.instant", "navigation.instant.prefetch", "navigation.instant.progress", "navigation.instant.preview", "navigation.sections", "navigation.tracking", "navigation.tabs", "navigation.path", "navigation.indexes", "navigation.top", "toc.follow", "search.suggest", "search.highlight", "search.share"], "search": "../../../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.83f73b43.min.js"></script>
+      
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+      
+    
+  </body>
+</html>

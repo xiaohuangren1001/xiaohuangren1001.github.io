@@ -1,0 +1,1641 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../13-kbd-part0/">
+      
+      
+        <link rel="next" href="../15-syscall/">
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.44">
+    
+    
+      
+        <title>14 终于可以打字了——键盘驱动（下） - Oildum/Atklom's Blog</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.0253249f.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/style.css">
+    
+      <link rel="stylesheet" href="../../../assets/highlight.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#14" class="md-skip">
+          跳转至
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../../.." title="Oildum/Atklom&#39;s Blog" class="md-header__button md-logo" aria-label="Oildum/Atklom's Blog" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Oildum/Atklom's Blog
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              14 终于可以打字了——键盘驱动（下）
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="分享" aria-label="分享" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+    
+  
+  主页
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../" class="md-tabs__link">
+          
+  
+    
+  
+  操作系统教程
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="Oildum/Atklom&#39;s Blog" class="md-nav__button md-logo" aria-label="Oildum/Atklom's Blog" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Oildum/Atklom's Blog
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    主页
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    操作系统教程
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            操作系统教程
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    旧教程
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            旧教程
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../00-beforestart/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    00 开始之前
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../01-first-boot-sector/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    01 第一个引导扇区
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../02-fat12-file-system/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    02 FAT12 文件系统
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../03-find-loader/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    03 查找 Loader
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../04-load-and-jump-into-loader/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    04 加载并跳入 Loader
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../05-read-kernel-and-into-32/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    05 读取内核并进入保护模式
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../06-relocate-and-jump-into-kernel/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    06 重新放置内核并进入内核
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../07-print-impl/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    07 实现我们自己的打印函数
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../08-we-love-makefile/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    08 整理文件
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../09-gdtidt/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    09 重设 GDT、IDT
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../10-irq/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    10 接收外部中断，从时钟开始
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../11-seg-memman/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    11 段式内存管理的实现
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../12-multitasking/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    12 多任务
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../13-kbd-part0/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    13 终于可以打字了——键盘驱动（上）
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    14 终于可以打字了——键盘驱动（下）
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    14 终于可以打字了——键盘驱动（下）
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#14" class="md-nav__link">
+    <span class="md-ellipsis">
+      14.终于可以打字了——键盘驱动（下）
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../15-syscall/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    15 系统调用——应用程序与系统的交互之门
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../16-shell-d-and-i/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    16 shell的设计与实现
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../17-fat16-part0/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    17 实现FAT16文件系统（1）——基础设施建设：硬盘驱动、RTC
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../18-fat16-part1/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    18 实现FAT16文件系统（2）——格式化、打开文件、创建文件
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../19-fat16-part2/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    19 实现FAT16文件系统（3）——读取文件、写入文件、删除文件
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../20-fat16-part3/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    20 实现FAT16文件系统（4）——上层包装
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../21-fat16-part4/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    21 FAT16 文件系统实战——抛弃软盘，从硬盘启动
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../22-first-app/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    22 第一个应用程序
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../23-c-app-part0/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    23 C语言应用程序（上）
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../24-c-app-part1/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    24 C语言应用程序（下）
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../new/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    新教程
+  </span>
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            新教程
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#14" class="md-nav__link">
+    <span class="md-ellipsis">
+      14.终于可以打字了——键盘驱动（下）
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  <h1>14 终于可以打字了——键盘驱动（下）</h1>
+
+<h3 id="14">14.终于可以打字了——键盘驱动（下）<a class="headerlink" href="#14" title="Permanent link">&para;</a></h3>
+<p>欢迎回来，我们继续键盘驱动的旅途。</p>
+<p>首先，是三个最基本的东西：shift、alt 和 ctrl。这三个东西我们完全没有处理，特别是 shift，导致我们现在任何一个大写字母都打不出来。</p>
+<p>修改一下 <code>keyboard.c</code>，先在最开头写下这几个全局变量，记录 shift、alt、ctrl 的状态：</p>
+<p><strong>代码 14-1 shift、alt、ctrl 的状态（drivers/keyboard.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">code_with_E0</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">shift_l</span><span class="p">;</span>
+<span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">shift_r</span><span class="p">;</span>
+<span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">alt_l</span><span class="p">;</span>
+<span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">alt_r</span><span class="p">;</span>
+<span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">ctrl_l</span><span class="p">;</span>
+<span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">ctrl_r</span><span class="p">;</span>
+<span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">caps_lock</span><span class="p">;</span>
+<span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">num_lock</span><span class="p">;</span>
+<span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">scroll_lock</span><span class="p">;</span>
+<span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">column</span><span class="p">;</span>
+</code></pre></div></p>
+<p>然后是现在的 <code>keyboard_read</code>：</p>
+<p><strong>代码 14-2 带 <code>shift</code> 的扫描码解析（drivers/keyboard.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">keyboard_read</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">scancode</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">make</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="o">*</span><span class="n">keyrow</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">fifo_status</span><span class="p">(</span><span class="o">&amp;</span><span class="n">keyfifo</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">scancode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_scancode</span><span class="p">();</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">scancode</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mh">0xE1</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// 特殊开头，暂不做处理</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">scancode</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mh">0xE0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">code_with_E0</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">make</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">scancode</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="n">FLAG_BREAK</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="nb">false</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">            </span><span class="n">keyrow</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">keymap</span><span class="p">[(</span><span class="n">scancode</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mh">0x7f</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">MAP_COLS</span><span class="p">];</span>
+<span class="w">            </span><span class="n">column</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">shift_l</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">shift_r</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">column</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">code_with_E0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">column</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="w">                </span><span class="n">code_with_E0</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">keyrow</span><span class="p">[</span><span class="n">column</span><span class="p">];</span>
+<span class="w">            </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">key</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="k">case</span><span class="w"> </span><span class="no">SHIFT_L</span><span class="p">:</span>
+<span class="w">                    </span><span class="n">shift_l</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">make</span><span class="p">;</span>
+<span class="w">                    </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">                    </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                </span><span class="k">case</span><span class="w"> </span><span class="no">SHIFT_R</span><span class="p">:</span>
+<span class="w">                    </span><span class="n">shift_r</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">make</span><span class="p">;</span>
+<span class="w">                    </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">                    </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                </span><span class="k">case</span><span class="w"> </span><span class="no">CTRL_L</span><span class="p">:</span>
+<span class="w">                    </span><span class="n">ctrl_l</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">make</span><span class="p">;</span>
+<span class="w">                    </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">                    </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                </span><span class="k">case</span><span class="w"> </span><span class="no">CTRL_R</span><span class="p">:</span>
+<span class="w">                    </span><span class="n">ctrl_r</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">make</span><span class="p">;</span>
+<span class="w">                    </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">                    </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                </span><span class="k">case</span><span class="w"> </span><span class="no">ALT_L</span><span class="p">:</span>
+<span class="w">                    </span><span class="n">alt_l</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">make</span><span class="p">;</span>
+<span class="w">                    </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">                    </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                </span><span class="k">case</span><span class="w"> </span><span class="no">ALT_R</span><span class="p">:</span>
+<span class="w">                    </span><span class="n">alt_r</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">make</span><span class="p">;</span>
+<span class="w">                    </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">                    </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                </span><span class="k">default</span><span class="o">:</span>
+<span class="w">                    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">make</span><span class="p">)</span><span class="w"> </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">                    </span><span class="k">break</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">key</span><span class="p">)</span><span class="w"> </span><span class="n">monitor_put</span><span class="p">(</span><span class="n">key</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>在实现 <code>shift</code> 的同时，我们过滤了 <code>ctrl</code> 和 <code>alt</code>，判断是否释放也改为了判断是否按下，同时会在适当的时候忽略 <code>key</code> 的值。</p>
+<p>编译，运行，按下 shift 和不按 shift 分别输入 <code>abc123</code>，效果如图所示：</p>
+<p><img alt="" src="../images/graph-14-1.png" /></p>
+<p>（图 14-1 实现 shift）</p>
+<p>现在的 <code>keyboard_read</code> 对按键的处理仅限于打印，为了匹配以后更加复杂的需求，我们单独创建一个 <code>in_process</code> 用来处理不同的按键。</p>
+<p>把 <code>if (key) monitor_put(key)</code> 替换为：</p>
+<p><strong>代码 14-3 对按键进行编码（drivers/keyboard.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">make</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">key</span><span class="w"> </span><span class="o">|=</span><span class="w"> </span><span class="n">shift_l</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">FLAG_SHIFT_L</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">                </span><span class="n">key</span><span class="w"> </span><span class="o">|=</span><span class="w"> </span><span class="n">shift_r</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">FLAG_SHIFT_R</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">                </span><span class="n">key</span><span class="w"> </span><span class="o">|=</span><span class="w"> </span><span class="n">alt_l</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">FLAG_ALT_L</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">                </span><span class="n">key</span><span class="w"> </span><span class="o">|=</span><span class="w"> </span><span class="n">alt_r</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">FLAG_ALT_R</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">                </span><span class="n">key</span><span class="w"> </span><span class="o">|=</span><span class="w"> </span><span class="n">ctrl_l</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">FLAG_CTRL_L</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">                </span><span class="n">key</span><span class="w"> </span><span class="o">|=</span><span class="w"> </span><span class="n">ctrl_r</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">FLAG_CTRL_R</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">                </span><span class="n">in_process</span><span class="p">(</span><span class="n">key</span><span class="p">);</span>
+<span class="w">            </span><span class="p">}</span>
+</code></pre></div></p>
+<p>这里相当于对 <code>key</code> 进行了编码，同时将当时所有的按键状态编码了进去。</p>
+<p>然后是 <code>in_process</code>，把它放在 <code>keyboard_read</code> 之前。</p>
+<p><strong>代码 14-4 <code>in_process</code>（drivers/keyboard.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">in_process</span><span class="p">(</span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">key</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="p">(</span><span class="n">key</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="n">FLAG_EXT</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">monitor_put</span><span class="p">(</span><span class="n">key</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mh">0xFF</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>编译，运行，效果仍应如<strong>图 14-1</strong>所示。</p>
+<p>下面是对回车、退格和 <code>tab</code> 行为的单独处理，我们只需要找出 <code>ENTER</code>、 <code>BACKSPACE</code> 以及 <code>TAB</code> 这两种情况，改为打印 <code>\n</code>、 <code>\b</code> 以及 <code>\t</code>。</p>
+<p><strong>代码 14-5 回车、退格与 <code>TAB</code>（drivers/keyboard.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">in_process</span><span class="p">(</span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">key</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="p">(</span><span class="n">key</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="n">FLAG_EXT</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">monitor_put</span><span class="p">(</span><span class="n">key</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mh">0xFF</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kt">int</span><span class="w"> </span><span class="n">raw_key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">key</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="n">MASK_RAW</span><span class="p">;</span>
+<span class="w">        </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">raw_key</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">ENTER</span><span class="p">:</span>
+<span class="w">                </span><span class="n">monitor_put</span><span class="p">(</span><span class="sc">&#39;\n&#39;</span><span class="p">);</span>
+<span class="w">                </span><span class="k">break</span><span class="p">;</span>
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">BACKSPACE</span><span class="p">:</span>
+<span class="w">                </span><span class="n">monitor_put</span><span class="p">(</span><span class="sc">&#39;\b&#39;</span><span class="p">);</span>
+<span class="w">                </span><span class="k">break</span><span class="p">;</span>
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">TAB</span><span class="p">:</span>
+<span class="w">                </span><span class="n">monitor_put</span><span class="p">(</span><span class="sc">&#39;\t&#39;</span><span class="p">);</span>
+<span class="w">                </span><span class="k">break</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>编译，运行，待 <code>task_c</code> 输出后连按数次退格，效果如下：</p>
+<p><img alt="" src="../images/graph-14-2.png" /></p>
+<p>（图 14-2 <code>BACKSPACE</code> 的异常）</p>
+<p>我们发现，光标虽然成功后移，但字符都还在。这是在 <code>monitor_put</code> 中对 <code>\b</code> 的判断中应当处理的，找到 <code>monitor_put</code> 中的第一个判断，我们来做一个专项修改：</p>
+<p><strong>代码 14-6 对退格键的修改（kernel/monitor.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">c</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mh">0x08</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">cursor_x</span><span class="p">)</span><span class="w"> </span><span class="c1">// 退格，且光标不在某行开始处</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">cursor_x</span><span class="o">--</span><span class="p">;</span><span class="w"> </span><span class="c1">// 直接把光标向后移一格</span>
+<span class="w">        </span><span class="n">video_memory</span><span class="p">[</span><span class="n">cursor_y</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">80</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">cursor_x</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x20</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="p">(</span><span class="n">attributeByte</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">8</span><span class="p">);</span><span class="w"> </span><span class="c1">// 空格</span>
+<span class="w">    </span><span class="p">}</span>
+</code></pre></div></p>
+<p>再次编译，运行，待 <code>task_c</code> 输出信息后，按若干次退格并按下 <code>\n</code>、<code>\t</code>，效果如下：</p>
+<p><img alt="" src="../images/graph-14-3.png" /></p>
+<p>（图 14-3 成功删除字符）</p>
+<p>由此即可证明，对这三个键的处理可以暂告一段落。乘胜追击，我们来处理键盘上有指示灯的三个键：<code>CapsLock</code>、<code>NumLock</code> 和 <code>ScrollLock</code>（什么？<code>Fn</code>？这玩意真的在 <code>PS/2</code> 键盘上？）。</p>
+<p>对键盘指示灯的操控需要借助我们之前遇到的 <code>0x60</code> 端口，也要借助键盘控制器的另一个端口——<code>0x64</code>。</p>
+<p>如何设置键盘指示灯的情况呢？非常简单，大致分为如下几步：</p>
+<ol>
+<li>
+<p>读出控制器端口 <code>0x64</code> 对应的数据，观察其从低往高第2位是否为 0，若为 0，代表当前可向 <code>0x60</code> 端口发送命令；</p>
+</li>
+<li>
+<p>向 <code>0x60</code> 端口发出命令 <code>0xED</code>，意为设置键盘 LED 灯状态。键盘控制器收到命令后，会在 <code>0x60</code> 端口发送一个 <code>0xFA</code>，我们需要等待这个 <code>0xFA</code> 返回。</p>
+</li>
+<li>
+<p>向 <code>0x60</code> 端口发出希望设置的键盘 LED 灯状态，它应被编码为一个字节，高5位均为0，从低往高数第1、2、3位分别为 <code>ScrollLock</code>、<code>NumLock</code> 和 <code>CapsLock</code>，其中每一位的 0 为熄灭，1 为亮起。</p>
+</li>
+<li>
+<p>键盘设置完 LED 灯状态后，会再次发送一个 <code>0xFA</code> 需要我们读出。</p>
+</li>
+</ol>
+<p>好了，在我们前面设置 shift、ctrl 和 alt 状态的时候已经增加了这三个 lock 指示灯的变量，我们来针对上面的四步分别写程序。</p>
+<p>首先，我们来创建一个设置 LED 灯状态的函数，实际使用时只需要往 <code>caps_lock</code>、<code>num_lock</code> 和 <code>scroll_lock</code> 三个变量中写指示灯状态即可（请把它们放在 <code>get_scancode</code> 之前）。</p>
+<p><strong>代码 14-7 设置 LED 状态（drivers/keyboard.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">kb_wait</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">kb_stat</span><span class="p">;</span>
+<span class="w">    </span><span class="k">do</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">kb_stat</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inb</span><span class="p">(</span><span class="n">KB_CMD</span><span class="p">);</span><span class="w"> </span><span class="c1">// KB_CMD: 0x64</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">kb_stat</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mh">0x02</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">kb_ack</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">kb_data</span><span class="p">;</span>
+<span class="w">    </span><span class="k">do</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">kb_data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inb</span><span class="p">(</span><span class="n">KB_DATA</span><span class="p">);</span><span class="w"> </span><span class="c1">// KB_DATA: 0x60</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">kb_data</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">KB_ACK</span><span class="p">);</span><span class="w"> </span><span class="c1">// KB_ACK: 0xFA</span>
+<span class="p">}</span>
+
+<span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">set_leds</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">led_status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">caps_lock</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="p">(</span><span class="n">num_lock</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">scroll_lock</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">kb_wait</span><span class="p">();</span>
+<span class="w">    </span><span class="n">outb</span><span class="p">(</span><span class="n">KB_DATA</span><span class="p">,</span><span class="w"> </span><span class="n">LED_CODE</span><span class="p">);</span><span class="w"> </span><span class="c1">// LED_CODE: 0xED</span>
+<span class="w">    </span><span class="n">kb_ack</span><span class="p">();</span>
+
+<span class="w">    </span><span class="n">kb_wait</span><span class="p">();</span>
+<span class="w">    </span><span class="n">outb</span><span class="p">(</span><span class="n">KB_DATA</span><span class="p">,</span><span class="w"> </span><span class="n">led_status</span><span class="p">);</span>
+<span class="w">    </span><span class="n">kb_ack</span><span class="p">();</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>其中的 <code>KB_CMD</code>、<code>KB_DATA</code>、<code>KB_ACK</code> 以及 <code>LED_CODE</code> 已经定义在 <code>keyboard.h</code> 之中了。</p>
+<p>接下来我们对 <code>init_keyboard</code> 略作修改，初始化 LED 灯的状态。</p>
+<p><strong>代码 14-8 新版 <code>init_keyboard</code>（drivers/keyboard.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="kt">void</span><span class="w"> </span><span class="nf">init_keyboard</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">fifo_init</span><span class="p">(</span><span class="o">&amp;</span><span class="n">keyfifo</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p">,</span><span class="w"> </span><span class="n">keybuf</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">shift_l</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">shift_r</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="n">alt_l</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">alt_r</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="n">ctrl_l</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ctrl_r</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">caps_lock</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="n">num_lock</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="n">scroll_lock</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="n">set_leds</span><span class="p">();</span>
+
+<span class="w">    </span><span class="n">register_interrupt_handler</span><span class="p">(</span><span class="n">IRQ1</span><span class="p">,</span><span class="w"> </span><span class="n">keyboard_handler</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>之所以设置 <code>num_lock</code> 为 1，是因为小键盘的数字功能一般比方向功能常用。不过，设置了也还没有用，我们紧接着对 <code>caps_lock</code> 和 <code>num_lock</code> 的状态作出判断。</p>
+<p>我们首先添加当按下这三个键时更改状态和 LED 灯状态的处理，然后是添加了 CapsLock 按下时的实际功能。</p>
+<p><strong>代码 14-9 LED 灯状态的变换以及 CapsLock 的实际功能（drivers/keyboard.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">keyboard_read</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">scancode</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">make</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="o">*</span><span class="n">keyrow</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">fifo_status</span><span class="p">(</span><span class="o">&amp;</span><span class="n">keyfifo</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">scancode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_scancode</span><span class="p">();</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">scancode</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mh">0xE1</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// 特殊开头，暂不做处理</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">scancode</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mh">0xE0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">code_with_E0</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">make</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">scancode</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="n">FLAG_BREAK</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="nb">false</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">            </span><span class="n">keyrow</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">keymap</span><span class="p">[(</span><span class="n">scancode</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mh">0x7f</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">MAP_COLS</span><span class="p">];</span>
+<span class="w">            </span><span class="n">column</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="w">            </span><span class="kt">int</span><span class="w"> </span><span class="n">caps</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">shift_l</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">shift_r</span><span class="p">;</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">caps_lock</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="n">keyrow</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="sc">&#39;a&#39;</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">(</span><span class="n">keyrow</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="sc">&#39;z&#39;</span><span class="p">))</span><span class="w"> </span><span class="n">caps</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">!</span><span class="n">caps</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">caps</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">column</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">code_with_E0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">column</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="w">                </span><span class="n">code_with_E0</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">keyrow</span><span class="p">[</span><span class="n">column</span><span class="p">];</span>
+<span class="w">            </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">key</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="k">case</span><span class="w"> </span><span class="no">SHIFT_L</span><span class="p">:</span>
+<span class="w">                    </span><span class="n">shift_l</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">make</span><span class="p">;</span>
+<span class="w">                    </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                </span><span class="k">case</span><span class="w"> </span><span class="no">SHIFT_R</span><span class="p">:</span>
+<span class="w">                    </span><span class="n">shift_r</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">make</span><span class="p">;</span>
+<span class="w">                    </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                </span><span class="k">case</span><span class="w"> </span><span class="no">CTRL_L</span><span class="p">:</span>
+<span class="w">                    </span><span class="n">ctrl_l</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">make</span><span class="p">;</span>
+<span class="w">                    </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                </span><span class="k">case</span><span class="w"> </span><span class="no">CTRL_R</span><span class="p">:</span>
+<span class="w">                    </span><span class="n">ctrl_r</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">make</span><span class="p">;</span>
+<span class="w">                    </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                </span><span class="k">case</span><span class="w"> </span><span class="no">ALT_L</span><span class="p">:</span>
+<span class="w">                    </span><span class="n">alt_l</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">make</span><span class="p">;</span>
+<span class="w">                    </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                </span><span class="k">case</span><span class="w"> </span><span class="no">ALT_R</span><span class="p">:</span>
+<span class="w">                    </span><span class="n">alt_r</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">make</span><span class="p">;</span>
+<span class="w">                    </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                </span><span class="k">case</span><span class="w"> </span><span class="no">CAPS_LOCK</span><span class="p">:</span>
+<span class="w">                    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">make</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                        </span><span class="n">caps_lock</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">!</span><span class="n">caps_lock</span><span class="p">;</span>
+<span class="w">                        </span><span class="n">set_leds</span><span class="p">();</span>
+<span class="w">                    </span><span class="p">}</span>
+<span class="w">                    </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                </span><span class="k">case</span><span class="w"> </span><span class="no">NUM_LOCK</span><span class="p">:</span>
+<span class="w">                    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">make</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                        </span><span class="n">num_lock</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">!</span><span class="n">num_lock</span><span class="p">;</span>
+<span class="w">                        </span><span class="n">set_leds</span><span class="p">();</span>
+<span class="w">                    </span><span class="p">}</span>
+<span class="w">                    </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                </span><span class="k">case</span><span class="w"> </span><span class="no">SCROLL_LOCK</span><span class="p">:</span>
+<span class="w">                    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">make</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                        </span><span class="n">scroll_lock</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">!</span><span class="n">scroll_lock</span><span class="p">;</span>
+<span class="w">                        </span><span class="n">set_leds</span><span class="p">();</span>
+<span class="w">                    </span><span class="p">}</span>
+<span class="w">                    </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                </span><span class="k">default</span><span class="o">:</span>
+<span class="w">                    </span><span class="k">break</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">make</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">key</span><span class="w"> </span><span class="o">|=</span><span class="w"> </span><span class="n">shift_l</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">FLAG_SHIFT_L</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">                </span><span class="n">key</span><span class="w"> </span><span class="o">|=</span><span class="w"> </span><span class="n">shift_r</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">FLAG_SHIFT_R</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">                </span><span class="n">key</span><span class="w"> </span><span class="o">|=</span><span class="w"> </span><span class="n">alt_l</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">FLAG_ALT_L</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">                </span><span class="n">key</span><span class="w"> </span><span class="o">|=</span><span class="w"> </span><span class="n">alt_r</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">FLAG_ALT_R</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">                </span><span class="n">key</span><span class="w"> </span><span class="o">|=</span><span class="w"> </span><span class="n">ctrl_l</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">FLAG_CTRL_L</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">                </span><span class="n">key</span><span class="w"> </span><span class="o">|=</span><span class="w"> </span><span class="n">ctrl_r</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">FLAG_CTRL_R</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">                </span><span class="n">in_process</span><span class="p">(</span><span class="n">key</span><span class="p">);</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>这里实际的代码增加的不多，主要是大的 <code>switch-case</code> 增加了几个 lock 键，以及 <code>code_with_E0</code> 上面几行对 <code>caps_lock</code> 状态的处理。</p>
+<p>编译，运行，等待 <code>task_c</code> 输出完成后，依次按下：</p>
+<p>ENTER、CapsLock、a、b、c、1、2、3、CapsLock、a、b、c、1、2、3、CapsLock、Shift+A、A，</p>
+<p>效果如下：</p>
+<p><img alt="" src="../images/graph-14-4.png" /></p>
+<p>（图 14-4 CapsLock 的实际效果）</p>
+<p>最后，是对 NumLock 的处理，请用下面这一长串替换掉 <code>keyboard_read</code> 中 <code>if (make)</code> 的分支：</p>
+<p><strong>代码 14-10 NumLock（drivers/keyboard.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">make</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="kt">int</span><span class="w"> </span><span class="n">pad</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="n">key</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">PAD_SLASH</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">(</span><span class="n">key</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">PAD_9</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="n">pad</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">                    </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">key</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                        </span><span class="k">case</span><span class="w"> </span><span class="no">PAD_SLASH</span><span class="p">:</span>
+<span class="w">                            </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sc">&#39;/&#39;</span><span class="p">;</span>
+<span class="w">                            </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                        </span><span class="k">case</span><span class="w"> </span><span class="no">PAD_STAR</span><span class="p">:</span>
+<span class="w">                            </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sc">&#39;*&#39;</span><span class="p">;</span>
+<span class="w">                            </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                        </span><span class="k">case</span><span class="w"> </span><span class="no">PAD_MINUS</span><span class="p">:</span>
+<span class="w">                            </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sc">&#39;-&#39;</span><span class="p">;</span>
+<span class="w">                            </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                        </span><span class="k">case</span><span class="w"> </span><span class="no">PAD_PLUS</span><span class="p">:</span>
+<span class="w">                            </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sc">&#39;+&#39;</span><span class="p">;</span>
+<span class="w">                            </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                        </span><span class="k">case</span><span class="w"> </span><span class="no">PAD_ENTER</span><span class="p">:</span>
+<span class="w">                            </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ENTER</span><span class="p">;</span>
+<span class="w">                            </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                        </span><span class="k">default</span><span class="o">:</span>
+<span class="w">                            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">num_lock</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">(</span><span class="n">key</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">PAD_0</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">(</span><span class="n">key</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">PAD_9</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                                </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">key</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">PAD_0</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="sc">&#39;0&#39;</span><span class="p">;</span>
+<span class="w">                            </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">num_lock</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">(</span><span class="n">key</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">PAD_DOT</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                                </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sc">&#39;.&#39;</span><span class="p">;</span>
+<span class="w">                            </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                                </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">key</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                                    </span><span class="k">case</span><span class="w"> </span><span class="no">PAD_HOME</span><span class="p">:</span>
+<span class="w">                                        </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">HOME</span><span class="p">;</span>
+<span class="w">                                        </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                                    </span><span class="k">case</span><span class="w"> </span><span class="no">PAD_END</span><span class="p">:</span>
+<span class="w">                                        </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">END</span><span class="p">;</span>
+<span class="w">                                        </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                                    </span><span class="k">case</span><span class="w"> </span><span class="no">PAD_PAGEUP</span><span class="p">:</span>
+<span class="w">                                        </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PAGEUP</span><span class="p">;</span>
+<span class="w">                                        </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                                    </span><span class="k">case</span><span class="w"> </span><span class="no">PAD_PAGEDOWN</span><span class="p">:</span>
+<span class="w">                                        </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PAD_PAGEDOWN</span><span class="p">;</span>
+<span class="w">                                        </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                                    </span><span class="k">case</span><span class="w"> </span><span class="no">PAD_INS</span><span class="p">:</span>
+<span class="w">                                        </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">INSERT</span><span class="p">;</span>
+<span class="w">                                        </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                                    </span><span class="k">case</span><span class="w"> </span><span class="no">PAD_UP</span><span class="p">:</span>
+<span class="w">                                        </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">UP</span><span class="p">;</span>
+<span class="w">                                        </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                                    </span><span class="k">case</span><span class="w"> </span><span class="no">PAD_DOWN</span><span class="p">:</span>
+<span class="w">                                        </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">DOWN</span><span class="p">;</span>
+<span class="w">                                        </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                                    </span><span class="k">case</span><span class="w"> </span><span class="no">PAD_LEFT</span><span class="p">:</span>
+<span class="w">                                        </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">LEFT</span><span class="p">;</span>
+<span class="w">                                        </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                                    </span><span class="k">case</span><span class="w"> </span><span class="no">PAD_RIGHT</span><span class="p">:</span>
+<span class="w">                                        </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RIGHT</span><span class="p">;</span>
+<span class="w">                                        </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                                    </span><span class="k">case</span><span class="w"> </span><span class="no">PAD_DOT</span><span class="p">:</span>
+<span class="w">                                        </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">DELETE</span><span class="p">;</span>
+<span class="w">                                        </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                                    </span><span class="k">default</span><span class="o">:</span>
+<span class="w">                                        </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                                </span><span class="p">}</span>
+<span class="w">                            </span><span class="p">}</span>
+<span class="w">                            </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                    </span><span class="p">}</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">                </span><span class="n">key</span><span class="w"> </span><span class="o">|=</span><span class="w"> </span><span class="n">shift_l</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">FLAG_SHIFT_L</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">                </span><span class="n">key</span><span class="w"> </span><span class="o">|=</span><span class="w"> </span><span class="n">shift_r</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">FLAG_SHIFT_R</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">                </span><span class="n">key</span><span class="w"> </span><span class="o">|=</span><span class="w"> </span><span class="n">ctrl_l</span><span class="w">  </span><span class="o">?</span><span class="w"> </span><span class="n">FLAG_CTRL_L</span><span class="w">  </span><span class="o">:</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">                </span><span class="n">key</span><span class="w"> </span><span class="o">|=</span><span class="w"> </span><span class="n">ctrl_r</span><span class="w">  </span><span class="o">?</span><span class="w"> </span><span class="n">FLAG_CTRL_R</span><span class="w">  </span><span class="o">:</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">                </span><span class="n">key</span><span class="w"> </span><span class="o">|=</span><span class="w"> </span><span class="n">alt_l</span><span class="w">   </span><span class="o">?</span><span class="w"> </span><span class="n">FLAG_ALT_L</span><span class="w">   </span><span class="o">:</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">                </span><span class="n">key</span><span class="w"> </span><span class="o">|=</span><span class="w"> </span><span class="n">alt_r</span><span class="w">   </span><span class="o">?</span><span class="w"> </span><span class="n">FLAG_ALT_R</span><span class="w">   </span><span class="o">:</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">                </span><span class="n">key</span><span class="w"> </span><span class="o">|=</span><span class="w"> </span><span class="n">pad</span><span class="w">     </span><span class="o">?</span><span class="w"> </span><span class="n">FLAG_PAD</span><span class="w">     </span><span class="o">:</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="w">                </span><span class="n">in_process</span><span class="p">(</span><span class="n">key</span><span class="p">);</span>
+<span class="w">            </span><span class="p">}</span>
+</code></pre></div></p>
+<p>编译，运行，依次按下小键盘上的：</p>
+<p>Enter、7、8、9、4、5、6、1、2、3、+、-、*、/、.、Enter、Enter、0、0、0、0、0、0、0、0、Enter、Enter，</p>
+<p>然后是不在小键盘上的上下左右方向键，按下 Enter，再按下不在小键盘上的上下左右方向键，效果如下：</p>
+<p><img alt="" src="../images/graph-14-5.png" /></p>
+<p>（图 14-5 NumLock 的实际效果）</p>
+<p>前面小键盘的测试部分倒是符合预期，但是为什么上下左右方向键会输出一个 <code>8</code> 呢（有的机型甚至会输出 <code>8246</code>）？</p>
+<p>通过回到第 13 节开篇的状态打印扫描码我们发现，原来是 qemu 对 PS/2 键盘的模拟出了点故障，将 0xE0 这一本该放在前面的字节放在了后面，导致我们的键盘驱动先接收到要打印小键盘的 <code>8</code>（没错，方向键和小键盘上的键扫描码相同，只是后面跟了个 0xE0），然后接收到 0xE0，0xE0 就被后续的方向键所匹配了（有的甚至都匹配不上）。对此我们有几个解决方案：要么干脆摆烂直接不管，要么做一个补丁。</p>
+<p>但是，经过进一步的测试，我们发现不同版本的 QEMU 有不同的模拟逻辑，有的 QEMU 甚至直接不区分方向键和小键盘的方向键，那这个补丁自然没法打，所以就此开摆！</p>
+<p>最后，我们把 <code>in_process</code> 中的打印字符改为向特定的 FIFO 中放入字符，由 <code>kernel_main</code> 或者别的什么地方从这里面读取。</p>
+<p><strong>代码 14-11 <code>in_process</code> 最终版（drivers/keyboard.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">in_process</span><span class="p">(</span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">key</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="p">(</span><span class="n">key</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="n">FLAG_EXT</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">fifo_put</span><span class="p">(</span><span class="o">&amp;</span><span class="n">decoded_key</span><span class="p">,</span><span class="w"> </span><span class="n">key</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mh">0xFF</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kt">int</span><span class="w"> </span><span class="n">raw_key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">key</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="n">MASK_RAW</span><span class="p">;</span>
+<span class="w">        </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">raw_key</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">ENTER</span><span class="p">:</span>
+<span class="w">                </span><span class="n">fifo_put</span><span class="p">(</span><span class="o">&amp;</span><span class="n">decoded_key</span><span class="p">,</span><span class="w"> </span><span class="sc">&#39;\n&#39;</span><span class="p">);</span>
+<span class="w">                </span><span class="k">break</span><span class="p">;</span>
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">BACKSPACE</span><span class="p">:</span>
+<span class="w">                </span><span class="n">fifo_put</span><span class="p">(</span><span class="o">&amp;</span><span class="n">decoded_key</span><span class="p">,</span><span class="w"> </span><span class="sc">&#39;\b&#39;</span><span class="p">);</span>
+<span class="w">                </span><span class="k">break</span><span class="p">;</span>
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">TAB</span><span class="p">:</span>
+<span class="w">                </span><span class="n">fifo_put</span><span class="p">(</span><span class="o">&amp;</span><span class="n">decoded_key</span><span class="p">,</span><span class="w"> </span><span class="sc">&#39;\t&#39;</span><span class="p">);</span>
+<span class="w">                </span><span class="k">break</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>在文件开头添加两行 <code>fifo_t decoded_key;</code> 以及 <code>uint32_t dkey_buf[32];</code>，在 <code>init_keyboard</code> 中加入一行 <code>fifo_init(&amp;decoded_key, 32, dkey_buf);</code>，我们的键盘驱动就此完结。</p>
+<p>最新版的测试用 <code>main.c</code> 完整版如下：</p>
+<p><strong>代码 14-12 键盘驱动最终测试（kernel/main.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;monitor.h&quot;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;gdtidt.h&quot;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;isr.h&quot;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;timer.h&quot;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;memory.h&quot;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;mtask.h&quot;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;keyboard.h&quot;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;fifo.h&quot;</span>
+
+<span class="k">extern</span><span class="w"> </span><span class="n">fifo_t</span><span class="w"> </span><span class="n">decoded_key</span><span class="p">;</span>
+
+<span class="n">task_t</span><span class="w"> </span><span class="o">*</span><span class="nf">create_kernel_task</span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">entry</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">task_t</span><span class="w"> </span><span class="o">*</span><span class="n">new_task</span><span class="p">;</span>
+<span class="w">    </span><span class="n">new_task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task_alloc</span><span class="p">();</span>
+<span class="w">    </span><span class="n">new_task</span><span class="o">-&gt;</span><span class="n">tss</span><span class="p">.</span><span class="n">esp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">)</span><span class="w"> </span><span class="n">kmalloc</span><span class="p">(</span><span class="mi">64</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1024</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">64</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1024</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span>
+<span class="w">    </span><span class="n">new_task</span><span class="o">-&gt;</span><span class="n">tss</span><span class="p">.</span><span class="n">eip</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="n">entry</span><span class="p">;</span>
+<span class="w">    </span><span class="n">new_task</span><span class="o">-&gt;</span><span class="n">tss</span><span class="p">.</span><span class="n">es</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new_task</span><span class="o">-&gt;</span><span class="n">tss</span><span class="p">.</span><span class="n">ss</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new_task</span><span class="o">-&gt;</span><span class="n">tss</span><span class="p">.</span><span class="n">ds</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new_task</span><span class="o">-&gt;</span><span class="n">tss</span><span class="p">.</span><span class="n">fs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new_task</span><span class="o">-&gt;</span><span class="n">tss</span><span class="p">.</span><span class="n">gs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">8</span><span class="p">;</span>
+<span class="w">    </span><span class="n">new_task</span><span class="o">-&gt;</span><span class="n">tss</span><span class="p">.</span><span class="n">cs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">8</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">new_task</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">kernel_main</span><span class="p">()</span><span class="w"> </span><span class="c1">// kernel.asm会跳转到这里</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">monitor_clear</span><span class="p">();</span>
+<span class="w">    </span><span class="n">init_gdtidt</span><span class="p">();</span>
+<span class="w">    </span><span class="n">init_memory</span><span class="p">();</span>
+<span class="w">    </span><span class="n">init_timer</span><span class="p">(</span><span class="mi">100</span><span class="p">);</span>
+<span class="w">    </span><span class="n">init_keyboard</span><span class="p">();</span>
+<span class="w">    </span><span class="k">asm</span><span class="p">(</span><span class="s">&quot;sti&quot;</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">task_t</span><span class="w"> </span><span class="o">*</span><span class="n">task_a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task_init</span><span class="p">();</span>
+
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">fifo_status</span><span class="p">(</span><span class="o">&amp;</span><span class="n">decoded_key</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">monitor_put</span><span class="p">(</span><span class="n">fifo_get</span><span class="p">(</span><span class="o">&amp;</span><span class="n">decoded_key</span><span class="p">));</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>编译，运行，输入 abc123、enter、1234567，效果如下：</p>
+<p><img alt="" src="../images/graph-14-6.png" /></p>
+<p>（图 14-6 一片空旷）</p>
+<p>我们看到，现在的OS启动时屏幕一片空旷，它成了一个完完全全的打字机。这也算是我们人机交互的初步成果了。</p>
+<p>键盘相关的处理到此结束，下一节，我们开始脱离内核，向用户层迈进。</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+        <div class="md-copyright__highlight">
+          本文档采用 <a href="https://creativecommons.org/licenses/by-sa/4.0/">知识共享 署名-相同方式共享 4.0 协议</a> 进行许可。
+        </div>
+        <div class="md-copyright__highlight">
+          Copyright &copy; 2024 Oildum. Powered by mkdocs. Special thanks to copi143 for providing the theme and scripts.
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../../..", "features": ["content.tooltips", "navigation.instant", "navigation.instant.prefetch", "navigation.instant.progress", "navigation.instant.preview", "navigation.sections", "navigation.tracking", "navigation.tabs", "navigation.path", "navigation.indexes", "navigation.top", "toc.follow", "search.suggest", "search.highlight", "search.share"], "search": "../../../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.83f73b43.min.js"></script>
+      
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+      
+    
+  </body>
+</html>
