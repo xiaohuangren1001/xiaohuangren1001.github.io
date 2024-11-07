@@ -4,7 +4,7 @@ title: 主页
 
 # 你是？
 
-我是红灯/Oildum/Atklom/one737/小黄人1001/事创造键啊/uii/unsigned_int_i/CreativeFlourine（为什么会有人从这个网名找到我啊）
+我是红灯/Oildum/Atklom/??one737/小黄人1001/??事创造键啊??/uii/unsigned_int_i/CreativeFlourine?? ??（为什么会有人从这个网名找到我啊）??
 
 以上几个网名的演变史：
 
@@ -25,3 +25,5 @@ CreativeFlourine：忘了怎么给我名字变形成 Flourine，Creative 为无�
 # 这个页面是？
 
 如大标题所说，是 Atklom 的博客主页。这一页里没啥好看的，我的建议是从上面的导航栏随便找个地逛逛。
+
+关于我的更多信息，参见：咕咕咕
