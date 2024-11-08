@@ -1068,7 +1068,7 @@
 <p>那么我们的目标就是用一些功能往屏幕上输出信息。现在这个阶段，除了我们之外，还活着的也就一个 BIOS 了。万幸的是，BIOS 提供了显示字符串的方法，具体用法如下：</p>
 <blockquote>
 <p>向下列寄存器中依次存入：</p>
-<p>AH=13h：输出信息</p>
+<p>AH=013h，表示输出信息</p>
 <p>BH=页码（一般可以置0）</p>
 <p>BL=属性（当al=0或1时才有用）</p>
 <p>CX=字符串长度</p>
@@ -1143,8 +1143,8 @@
 <p><code>sort(v.begin(), v.end(), cmp);</code>，<code>int 10h</code> 就类似 <code>sort</code>（只是角色，功能很不同），<code>v.begin()</code>、<code>v.end()</code>、<code>cmp</code> 作为参数则和那些寄存器类似（当然后面知道其实也很不同）。</p>
 <p>最后的 <code>ret</code>，相当于 <code>return ax;</code>。这个返回值怎么处置，最终是由调用方说了算。</p>
 <p>下面的 <code>BootMessage</code> 那一行已解释过，再往下比较有意思，<code>times 510 - ($ - $$) db 0</code>，这是在干什么，发刀乐么？</p>
-<p>先说 <code>times</code>。<code>times xxx aaa</code>，相当于做 <code>xxx</code> 次 <code>aaa</code>。其中，<code>aaa</code> 必须是伪指令。因此，<code>times</code> 本身也就是个伪指令。一般 <code>times</code> 都与 <code>db</code> 系列的伪指令配合使用，和其他的联合使用的，我是没见过例子。</p>
-<p>下面的 <code>$</code> 已经解释过，表示现在这个指令的起始内存地址；<code>$$</code> 则比较复杂，不过在这个语境下，可以默认它是 0。也就是说，写成 <code>times 510 - $ db 0</code> 也是没有问题的。</p>
+<p>先说 <code>times</code>。<code>times xxx aaa</code>，相当于做 <code>xxx</code> 次 <code>aaa</code>。<code>times</code> 本身也就个伪指令。一般 <code>times</code> 都与 <code>db</code> 系列的伪指令配合使用，和其他的联合使用的，我是没见过例子。</p>
+<p>下面的 <code>$</code> 已经解释过，表示现在这个指令的起始内存地址，以此类推，其实伪指令的起始地址也可以用 <code>$</code> 表示；<code>$$</code> 则比较复杂，不过在这个语境下，可以默认它是 0。也就是说，写成 <code>times 510 - $ db 0</code> 也是没有问题的。</p>
 <p>最后 <code>db 0x55, 0xAA</code>，是为了顺应硬件规程的需要，“扇区最后两个字节必须是 55 AA”。一个扇区一共 512 个字节，所以先把最后这一句一直到 510 字节填充成 0，然后写 <code>55 AA</code>，就能够保证这个二进制是一个符合硬件规程的扇区，从而能够被执行。</p>
 <p>程序读完了，想必在这之前大家也写 <del>抄</del> 好了，我们该怎么运行呢？首先编译一下：</p>
 <div class="highlight"><pre><span></span><code>nasm boot.asm -o boot.bin

@@ -1064,11 +1064,12 @@
   <h1>02 FAT12 文件系统</h1>
 
 <p>前面我们花了极大的篇幅来写一个极简引导扇区的实现，但是本节相比之下就要短很多了，我们要在我们的软盘中创建 FAT12 文件系统，这样后续我们写入 <code>Loader</code> 和 <code>Kernel</code> 就要方便很多了。</p>
-<p>引导扇区中加入 <code>FAT12</code> 文件系统头，</p>
-<p><code>FAT12</code> 文件系统的具体结构如下图所示（实在懒得打列表了，干脆搬了一张网图）：</p>
+<p>一个磁盘中有没有文件系统，是依靠什么来进行标识的呢？一般而言，每一个文件系统都有特定的一个结构用来描述自己，无论是 ext2 的 metadata 块，还是 FAT12/16/32 在引导扇区中加入的 BPB，都是一种对文件系统的标识。</p>
+<p>BPB 的具体结构如下图所示（实在懒得打列表了，干脆搬了一张网图）：</p>
 <p><img alt="" src="../images/fat12.webp" /></p>
-<p>（图 2-1 <code>FAT12</code> 文件系统头的结构）</p>
-<p>如诸位所见，<code>FAT12</code> 文件系统头占用了汇编程序开头的 64 个字节。注意，对于 <code>org</code> 指令来说，它<strong>并不在所编译得出的机器码之列</strong>，因此被称为<strong>伪指令</strong>。</p>
+<p>（图 2-1 BPB 的结构）</p>
+<p>如诸位所见，<code>FAT12</code> 文件系统头占用了汇编程序开头的 64 个字节。这下可用的空间又少了 64 字节（泪目）</p>
+<p>不过它也带给我们一个好处，一般的 FAT 实现都认为只要有 BPB 就是有 FAT 文件系统（有的实现甚至不会管 BPB），这样就可以用一些工具来方便地操作磁盘了。</p>
 <p>那么我们就依照此结构写入一下这些结构吧：</p>
 <p><strong>代码 2-1 <code>FAT12</code> 文件系统头（boot.asm）</strong>
 <div class="highlight"><pre><span></span><code><span class="w">    </span><span class="nf">org</span><span class="w"> </span><span class="mi">07</span><span class="no">c00h</span><span class="w"> </span><span class="c1">; 告诉编译器程序将装载至0x7c00处</span>
@@ -1076,7 +1077,7 @@
 <span class="w">    </span><span class="nf">jmp</span><span class="w"> </span><span class="no">short</span><span class="w"> </span><span class="no">LABEL_START</span>
 <span class="w">    </span><span class="nf">nop</span><span class="w"> </span><span class="c1">; BS_JMPBoot 由于要三个字节而jmp到LABEL_START只有两个字节 所以加一个nop</span>
 
-<span class="w">    </span><span class="nf">BS_OEMName</span><span class="w">     </span><span class="no">db</span><span class="w"> </span><span class="err">&#39;</span><span class="no">tutorial</span><span class="err">&#39;</span><span class="w">    </span><span class="c1">; 固定的8个字节</span>
+<span class="w">    </span><span class="nf">BS_OEMName</span><span class="w">     </span><span class="no">db</span><span class="w"> </span><span class="err">&#39;</span><span class="no">tutorial</span><span class="err">&#39;</span><span class="w">    </span><span class="c1">; 8个字节，内容随意</span>
 <span class="w">    </span><span class="nf">BPB_BytsPerSec</span><span class="w"> </span><span class="no">dw</span><span class="w"> </span><span class="mi">512</span><span class="w">           </span><span class="c1">; 每扇区固定512个字节</span>
 <span class="w">    </span><span class="nf">BPB_SecPerClus</span><span class="w"> </span><span class="no">db</span><span class="w"> </span><span class="mi">1</span><span class="w">             </span><span class="c1">; 每簇固定1个扇区</span>
 <span class="w">    </span><span class="nf">BPB_RsvdSecCnt</span><span class="w"> </span><span class="no">dw</span><span class="w"> </span><span class="mi">1</span><span class="w">             </span><span class="c1">; MBR固定占用1个扇区</span>
@@ -1088,12 +1089,12 @@
 <span class="w">    </span><span class="nf">BPB_SecPerTrk</span><span class="w">  </span><span class="no">dw</span><span class="w"> </span><span class="mi">18</span><span class="w">            </span><span class="c1">; 每磁道扇区数，固定为18</span>
 <span class="w">    </span><span class="nf">BPB_NumHeads</span><span class="w">   </span><span class="no">dw</span><span class="w"> </span><span class="mi">2</span><span class="w">             </span><span class="c1">; 磁头数，bximage 的输出告诉我们是2个</span>
 <span class="w">    </span><span class="nf">BPB_HiddSec</span><span class="w">    </span><span class="no">dd</span><span class="w"> </span><span class="mi">0</span><span class="w">             </span><span class="c1">; 隐藏扇区数，没有</span>
-<span class="w">    </span><span class="nf">BPB_TotSec32</span><span class="w">   </span><span class="no">dd</span><span class="w"> </span><span class="mi">0</span><span class="w">             </span><span class="c1">; 若之前的 BPB_TotSec16 处没有记录扇区数，则由此记录，如果记录了，这里直接置0即可</span>
-<span class="w">    </span><span class="nf">BS_DrvNum</span><span class="w">      </span><span class="no">db</span><span class="w"> </span><span class="mi">0</span><span class="w">             </span><span class="c1">; int 13h 调用时所读取的驱动器号，由于只挂在一个软盘所以是0 </span>
+<span class="w">    </span><span class="nf">BPB_TotSec32</span><span class="w">   </span><span class="no">dd</span><span class="w"> </span><span class="mi">0</span><span class="w">             </span><span class="c1">; 若之前的 BPB_TotSec16 处没有记录扇区数，则由此地址记录，如果记录了，这里直接置0即可</span>
+<span class="w">    </span><span class="nf">BS_DrvNum</span><span class="w">      </span><span class="no">db</span><span class="w"> </span><span class="mi">0</span><span class="w">             </span><span class="c1">; int 13h 调用时所读取的驱动器号，由于只有一个软盘所以是0 </span>
 <span class="w">    </span><span class="nf">BS_Reserved1</span><span class="w">   </span><span class="no">db</span><span class="w"> </span><span class="mi">0</span><span class="w">             </span><span class="c1">; 未使用，预留</span>
-<span class="w">    </span><span class="nf">BS_BootSig</span><span class="w">     </span><span class="no">db</span><span class="w"> </span><span class="mi">29</span><span class="no">h</span><span class="w">           </span><span class="c1">; 扩展引导标记</span>
+<span class="w">    </span><span class="nf">BS_BootSig</span><span class="w">     </span><span class="no">db</span><span class="w"> </span><span class="mi">29</span><span class="no">h</span><span class="w">           </span><span class="c1">; 扩展引导标记，固定为 0x29</span>
 <span class="w">    </span><span class="nf">BS_VolID</span><span class="w">       </span><span class="no">dd</span><span class="w"> </span><span class="mi">0</span><span class="w">             </span><span class="c1">; 卷序列号，由于只挂载一个软盘所以为0</span>
-<span class="w">    </span><span class="nf">BS_VolLab</span><span class="w">      </span><span class="no">db</span><span class="w"> </span><span class="err">&#39;</span><span class="no">OS-tutorial</span><span class="err">&#39;</span><span class="w"> </span><span class="c1">; 卷标，11个字节</span>
+<span class="w">    </span><span class="nf">BS_VolLab</span><span class="w">      </span><span class="no">db</span><span class="w"> </span><span class="err">&#39;</span><span class="no">OS-tutorial</span><span class="err">&#39;</span><span class="w"> </span><span class="c1">; 卷标，11个字节，内容随意</span>
 <span class="w">    </span><span class="nf">BS_FileSysType</span><span class="w"> </span><span class="no">db</span><span class="w"> </span><span class="err">&#39;</span><span class="no">FAT12</span><span class="w">   </span><span class="err">&#39;</span><span class="w">    </span><span class="c1">; 由于是 FAT12 文件系统，所以写入 FAT12 后补齐8个字节</span>
 
 <span class="nl">LABEL_START:</span><span class="w"> </span><span class="c1">; 后面就是正常的引导代码</span>

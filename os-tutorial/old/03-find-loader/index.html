@@ -1081,28 +1081,43 @@
 
 <span class="w">    </span><span class="nf">jmp</span><span class="w"> </span><span class="no">$</span><span class="w"> </span><span class="c1">; 卡死在此处</span>
 </code></pre></div></p>
-<p>这个 <code>Loader</code> 的作用很简单，只是在屏幕第一行的正中央显示一个白色的 “L” 。</p>
-<p>现在最主要的问题就是我们应该怎样寻找 <code>Loader</code> 呢？</p>
-<p>这个很简单，在根目录区中是一个一个一个32字节的文件结构，其中就包含文件名，我们在根目录区中查找即可。</p>
-<p>依照 FAT12 文件系统，根目录区排在 FAT 表和引导扇区后面，因此它的起始扇区是 BPB_RsvdSecCnt + BPB_NumFATs * BPB_FATSz16 = 19 号扇区；它的结束位置则是 19 + BPB_RootEntCnt * 32 / BPB_BytsPerSec = 33。</p>
-<p>于是我们的思路便有了：从第 19 号扇区开始，依次读取根目录区，并在其中查找 <code>LOADER  BIN</code>（loader.bin写入之后的文件名）。如果已经读到第 34 扇区而仍然没有找到 <code>LOADER  BIN</code>，那么就默认该磁盘内不存在 <code>loader</code> 。</p>
-<p>那么我们该怎么读取磁盘呢？事实上，BIOS的 <code>int 13h</code> 也给我们提供了这个功能：</p>
+<p>这个 <code>Loader</code> 的作用很简单，只是在屏幕第一行的正中央显示一个白色的 “L”。不过，它还是需要一些解释的。</p>
+<p>首先第一行想必不用解释，不管它加载到了什么段，都把它加载到 <code>0x100</code> 的偏移处。接下来两行让 <code>gs = 0xB800</code>，由第一节的知识可知，这个 <code>gs</code> 管的是从 <code>0xB8000</code> 开始的 64KB，而这个位置恰好（虽然没那么大）是文本模式下的显存，这里但凡有风吹草动，都会被立即显示在屏幕上。</p>
+<p>0Fh 代表白色，'L' 代表字符。把它们分别放在 <code>ah</code> 和 <code>al</code>，组成的 <code>ax</code> 就是一个可以被显示的字符了。对于任意一个字符而言，都需要用高 8 位放颜色，低 8 位放字符本身，然后再进行显示。</p>
+<p>最后一行出现了我们没见过的 <code>[]</code>，它是什么意思？我们先把这个 <code>[]</code> 去掉看看。<code>gs:((80 * 0 + 39) * 2)</code>，这像是一个坐标。确实如此，文本模式的显存横向为 80 字符，纵向为 25 字符。前面的 <code>80 * 0</code>，代表第 0 行，同样，<code>80 * k</code> 就代表第 <span class="arithmatex"><span class="MathJax_Preview">k</span><script type="math/tex">k</script></span> 行（第 0 到 <span class="arithmatex"><span class="MathJax_Preview">k-1</span><script type="math/tex">k-1</script></span> 行一共有 <span class="arithmatex"><span class="MathJax_Preview">80k</span><script type="math/tex">80k</script></span> 个字符）。后面的 <code>+ 39</code>，自然就表示第 <span class="arithmatex"><span class="MathJax_Preview">39</span><script type="math/tex">39</script></span> 列。由于这一行前面 <span class="arithmatex"><span class="MathJax_Preview">k</span><script type="math/tex">k</script></span> 行一共有 <span class="arithmatex"><span class="MathJax_Preview">80k</span><script type="math/tex">80k</script></span> 个字符，这一列前面 <span class="arithmatex"><span class="MathJax_Preview">n</span><script type="math/tex">n</script></span> 列又有 <span class="arithmatex"><span class="MathJax_Preview">n</span><script type="math/tex">n</script></span> 个字符，那么 <span class="arithmatex"><span class="MathJax_Preview">(k, n)</span><script type="math/tex">(k, n)</script></span> 这个坐标，自然就对应 <span class="arithmatex"><span class="MathJax_Preview">80k+n</span><script type="math/tex">80k+n</script></span> 这个位置（由此可见下标从 0 开始的好处）。</p>
+<p>那么为什么这个坐标要乘 <span class="arithmatex"><span class="MathJax_Preview">2</span><script type="math/tex">2</script></span> 呢？这个问题的回答则更为简单，由上面的说明就知道，每一个字符在显存中占据 <span class="arithmatex"><span class="MathJax_Preview">2</span><script type="math/tex">2</script></span> 个字节，所以自然要乘 <span class="arithmatex"><span class="MathJax_Preview">2</span><script type="math/tex">2</script></span> 才能定位到显存中的偏移。</p>
+<p>最后加上前面的 <code>gs:</code>，我们就得到了这个字符将要被显示的<strong>内存地址</strong>。而加上这个中括号，就意味着往这个地址对应的内存里写入东西，这里是 <code>ax</code>。至此，只要它被执行到，就可以在屏幕上显示一个白色 L。</p>
+<p>想要执行 <code>Loader</code>，自然需要先把它读取到内存，然后跳转过去；而想要读取 <code>Loader</code>，自然需要先找到它。</p>
+<p>于是现在最主要的问题就变成了：我们应该怎样寻找 <code>Loader</code> 呢？</p>
+<p>这个很简单，在根目录区中是一个一个一个 32 字节的文件结构，其中就包含文件名，我们在根目录区中查找即可。</p>
+<p>依照 FAT12 文件系统的结构规定，根目录区排在 FAT 表和引导扇区后面，因此它的起始扇区是 BPB_RsvdSecCnt + BPB_NumFATs * BPB_FATSz16 = 19 号扇区；它的结束位置则是 19 + BPB_RootEntCnt * 32 / BPB_BytsPerSec = 33 号扇区。在第一节也曾提到，扇区是一个长度为 512 字节的结构，大多数时候位于磁盘中。不过它还有一个地位，那就是<strong>磁盘读写的最小单位</strong>。当我们说第某某扇区或者是某某号扇区时，默认它从 0 开始，也就是说引导扇区是第 0 个而非第 1 个扇区。</p>
+<p>于是我们的思路便有了：从第 19 号扇区开始，依次读取每一个扇区，并在读到的扇区中查找 <code>LOADER  BIN</code>（loader.bin写入之后的文件名）。如果已经读到第 34 扇区而仍然没有找到 <code>LOADER  BIN</code>，那么就默认该磁盘内不存在 <code>loader</code> 。至于怎么找 <code>LOADER  BIN</code>，现在没有实现那么多高级算法的条件，只有一个小窍门：根目录区是从某某扇区开始的，而某某扇区的开始位置，一定是 512 的倍数，从而一定是 32 的倍数。那么，我们就只需要遍历开头 11 字节，若不等于 <code>LOADER  BIN</code>，则先指回开头，然后加 32，就来到了下一个文件结构。由于某某扇区的开始位置是 32 的倍数，所有文件信息的开始位置也都是 32 的倍数，从而指回开头可以通过位运算实现：<code>32=0b100000</code>，所以只需要与上 <span class="arithmatex"><span class="MathJax_Preview">0\text{xffff} - (32 - 1) = 0\text{xffe}0</span><script type="math/tex">0\text{xffff} - (32 - 1) = 0\text{xffe}0</script></span>，我们就回到了开头。</p>
+<p>那么我们该怎么读取磁盘呢？事实上，BIOS 也给我们提供了这个功能：</p>
 <blockquote>
-<p>AH=02h：读取磁盘</p>
+<p>向下列寄存器中依次存入：</p>
+<p>AH=02h，表示读取磁盘</p>
 <p>AL：待读取扇区数</p>
 <p>CH：起始扇区所在的柱面</p>
 <p>DH：起始扇区所在的磁头</p>
 <p>CL：起始扇区在柱面内的编号</p>
 <p>DL：驱动器号</p>
 <p>ES:BX：读入缓冲区的地址</p>
+<p>然后执行 <code>int 13h</code>。</p>
 <p>返回值：</p>
 <blockquote>
 <p>FLAGS.CF=0：操作成功，AH=0，AL=成功读入的扇区总数</p>
 <p>FLAGS.CF=1：操作失败，AH 存放错误编码</p>
 </blockquote>
 </blockquote>
-<p>错误编码我们并不需要，只需要保证 <code>FLAGS.CF</code> 的值为 <code>0</code> 就可以了。对此，我们可以执行一个 <code>jc</code> 跳转命令，它的作用是当 <code>FLAGS.CF</code> 为 <code>1</code> 时跳转。</p>
-<p>思路有了，读盘功能也有了，我们就开始写程序吧。首先在 <code>DispStr</code> 函数的后面加入一个读取扇区的函数 <code>ReadSector</code>，它的作用是从第 <code>ax</code> 号扇区开始，读取 <code>cl</code> 个扇区至 <code>es:bx</code>：</p>
+<p>这里又出现了一堆新名词，柱面、磁头，这又是什么？这是在物理上磁盘的存储结构，具体的结构不需要知道，你只需要知道，每一个磁盘有两面，分别对应上下两个磁头，编号为 <span class="arithmatex"><span class="MathJax_Preview">0</span><script type="math/tex">0</script></span> 和 <span class="arithmatex"><span class="MathJax_Preview">1</span><script type="math/tex">1</script></span>，而每一面上又被细细分为 <span class="arithmatex"><span class="MathJax_Preview">80</span><script type="math/tex">80</script></span> 个柱面（柱面也称<strong>磁道</strong>），而这里的扇区编号，则是把柱面再一次细分的结果，每一个柱面又被分为 <span class="arithmatex"><span class="MathJax_Preview">18</span><script type="math/tex">18</script></span> 个扇区。这一个柱面的 18 个扇区结束后，下一个扇区并不是紧邻着的相邻扇区，而是磁盘对面的那个柱面的第一个扇区。可能有些难理解，说白了，其实就是 0 磁头、0 柱面、18 扇区（第 17 扇区，牢记我们说第某某扇区时是从 0 开始的）的下一个扇区，并不是 0 磁头、1 柱面、1 扇区（第 36 扇区），而是 1 磁头、0 柱面、1 扇区（第 18 扇区）；而 1 磁头、0 柱面、18 扇区的下一个扇区（第 35 扇区），才是 0 磁头、1 柱面、1 扇区（第 36 扇区）。</p>
+<p>由于这种寻址方法太过具体，要给的参数太多，现在已经普遍弃用这种指定扇区的方法；由于用到柱面 <strong>C</strong>ylinder、磁头 <strong>H</strong>ead 和磁头内的扇区编号 <strong>S</strong>ector，这种方法被称为 CHS 方式。现在一般采用直接指定总的扇区编号的方法，这个扇区编号又有一个名字叫做<strong>逻辑区块地址</strong>（<strong>L</strong>ogical <strong>B</strong>lock <strong>A</strong>ddress），所以这种方法又被称为 LBA 方式。之所以现在突然提到这个，是为了给后面一个方便，以后就可以叫 CHS、LBA 了，更何况 LBA 这个概念我们后面还要用到。从上面的描述也可以大致猜出，为什么 CHS 里 C 排在 H 前面，实话说不查资料谁能想到啊。</p>
+<p>还有一个更坑的点，CHS 方式下的第一个扇区是 <span class="arithmatex"><span class="MathJax_Preview">0</span><script type="math/tex">0</script></span> 磁头、<span class="arithmatex"><span class="MathJax_Preview">0</span><script type="math/tex">0</script></span> 柱面的第 <strong>1</strong> 扇区，但 LBA 方式下的第一个扇区编号是 <strong>0</strong>。处理差一问题的痛苦回忆又开始回荡……（笑）</p>
+<p>总之，我们现在最大的需求，又变成了把 LBA 方式下的扇区转换成 CHS 的形式。我们先从扇区找到柱面，然后从柱面找到磁头，这一流程大概是这样的：</p>
+<p>首先，用 LBA 方式的扇区去除每磁道扇区数，这个东西写在了 BPB 里。前面定义 BPB 用的都是 <code>db</code>、<code>dw</code>、<code>dd</code>，也就是存了一堆数组。其中，<code>BPB_SecPerTrk</code> 表示每个磁道（其实就是柱面）有多少个扇区，它大概长这样：<code>short BPB_SecPerTrk[] = {18};</code>。所以，读取的时候也要读内存地址，也就是类似 <code>*BPB_SecPerTrk</code> 的东西。如果您有一定 C 语言储备，就知道它相当于 <code>BPB_SecPerTrk[0]</code>。这样，商就对应柱面，余数就是这个扇区在柱面内的位置，CHS 的 S 就已经到手了。由于 CHS 方式与 LBA 方式起始扇区的不同，这里需要给余数加 1。</p>
+<p>再然后，从柱面找磁头，由上面的描述可以推知，给柱面除以 2，余数就是磁头，商就是对应的那个柱面。举个例子看看，第 36 扇区除以 18，可以知道是第 2 个柱面（这个玩意也是从 0 开始），而它对应的磁头则在正面，隶属 0 磁头；第 35 扇区除以 18，是第 1 个柱面，而它则在背面，隶属 1 磁头。这是因为沿着扇区号走下去时，磁头整体上呈一个 0、1、0、1 交替的态势（具体地说，是一段 0、一段 1 这么交替下去的）。</p>
+<p>这样，就可以从 LBA 中一个单独的扇区号，完整地推出 CHS 三个分量的值。那么，我们也就只需要一个 LBA 扇区号就行了，上面的 BIOS 调用中，<code>CH</code>、<code>DH</code>、<code>CL</code> 可以归一。而驱动器号，则明明白白地写在 <code>BS_DrvNum</code> 这个数组里（它也是由 <code>db</code> 定义的），到时候从这个数组取值就行了，<code>DL</code> 也可以不要。这样，就只剩下三个必要的参数：缓冲区 <code>ES:BX</code>、读取扇区数 <code>AL</code> 以及起始扇区号。由于起始扇区号可能很大，我们把它分配给 <code>AX</code>，原先读取扇区数的位置就随便挑个东西给了，就 <code>CL</code> 吧。</p>
+<p>返回值中，错误编码我们并不需要，只需要保证 <code>FLAGS.CF</code> 的值为 <code>0</code> 就可以了。对此，我们可以执行一个 <code>jc</code> 跳转命令，它的作用是当 <code>FLAGS.CF</code> 为 <code>1</code> 时跳转。在这个案例里，我们让它多试几遍，不要因失败而放弃，每次让它在出错的时候跳转回读取循环的开头重新读入。</p>
+<p>思路有了，读盘功能也有了，我们就开始写程序吧。首先在 <code>DispStr</code> 函数的后面加入一个读取扇区的函数 <code>ReadSector</code>，它的作用上面已经讲过，从第 <code>ax</code> 号扇区开始，连续读取 <code>cl</code> 个扇区到 <code>es:bx</code>。</p>
 <p><strong>代码 3-2 读取软盘的函数（boot.asm）</strong>
 <div class="highlight"><pre><span></span><code><span class="nl">ReadSector:</span>
 <span class="w">    </span><span class="nf">push</span><span class="w"> </span><span class="no">bp</span>
@@ -1119,7 +1134,7 @@
 <span class="w">    </span><span class="nf">shr</span><span class="w"> </span><span class="no">al</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="c1">; 每个磁道两个磁头，除以2可得真正的柱面编号</span>
 <span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">ch</span><span class="p">,</span><span class="w"> </span><span class="no">al</span><span class="w"> </span><span class="c1">; 按照BIOS标准置入ch</span>
 <span class="w">    </span><span class="nf">and</span><span class="w"> </span><span class="no">dh</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="c1">; 对磁道模2取余，可得位于哪个磁头，结果已经置入dh</span>
-<span class="w">    </span><span class="nf">pop</span><span class="w"> </span><span class="no">bx</span><span class="w"> </span><span class="c1">; 将bx弹出</span>
+<span class="w">    </span><span class="nf">pop</span><span class="w"> </span><span class="no">bx</span><span class="w"> </span><span class="c1">; 将bx还原</span>
 <span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">dl</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="no">BS_DrvNum</span><span class="p">]</span><span class="w"> </span><span class="c1">; 将驱动器号存入dl</span>
 <span class="nl">.GoOnReading:</span><span class="w"> </span><span class="c1">; 万事俱备，只欠读取！</span>
 <span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">ah</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="c1">; 读盘</span>
@@ -1132,7 +1147,47 @@
 
 <span class="w">    </span><span class="nf">ret</span>
 </code></pre></div></p>
-<p>之所以这么包装一下，是因为如果每次都去手动填写上面的几个参数的话，实在是太麻烦了（总共有6个之多），现在我们只需要准备3个。</p>
+<p>这里出现了很多没有见过的东西，鉴于实在是有点多，所以我这里把它转写为类似 C 的程序：</p>
+<p><strong>代码 3-2 的转写（主体部分）</strong>
+<div class="highlight"><pre><span></span><code><span class="kt">void</span><span class="w"> </span><span class="nf">ReadSector</span><span class="p">(</span><span class="kt">short</span><span class="w"> </span><span class="n">ax</span><span class="p">,</span><span class="w"> </span><span class="kt">short</span><span class="w"> </span><span class="n">cl</span><span class="p">,</span><span class="w"> </span><span class="kt">short</span><span class="w"> </span><span class="o">*</span><span class="n">es</span><span class="o">:</span><span class="n">bx</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">save</span><span class="p">(</span><span class="n">cl</span><span class="p">);</span><span class="w"> </span><span class="c1">// 在栈里保存cl，但这个和存 bx 有很大不同，待会再说</span>
+<span class="w">    </span><span class="n">push_to_stack</span><span class="p">(</span><span class="n">bx</span><span class="p">);</span><span class="w"> </span><span class="c1">// 暂存bx</span>
+<span class="w">    </span><span class="n">bl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BPB_SecPerTrk</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span><span class="w"> </span><span class="c1">// 18</span>
+<span class="w">    </span><span class="kt">short</span><span class="w"> </span><span class="n">quot</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ax</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">bl</span><span class="p">,</span><span class="w"> </span><span class="n">remain</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ax</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="n">bl</span><span class="p">;</span><span class="w"> </span><span class="c1">// quot -&gt; 商，是从0开始位于第几个柱面；remain -&gt; 余数，是柱面内第几个扇区</span>
+<span class="w">    </span><span class="n">ah</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">remain</span><span class="p">,</span><span class="w"> </span><span class="n">al</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">quot</span><span class="p">;</span><span class="w"> </span><span class="c1">// div bl的效果就是这样</span>
+<span class="w">    </span><span class="n">ah</span><span class="o">++</span><span class="p">;</span><span class="w"> </span><span class="c1">// inc ah</span>
+<span class="w">    </span><span class="n">cl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ah</span><span class="p">;</span><span class="w"> </span><span class="c1">// cl：起始扇区在柱面内编号，已获得</span>
+<span class="w">    </span><span class="n">dh</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">al</span><span class="p">;</span><span class="w"> </span><span class="c1">// dh：从0开始的柱面号</span>
+<span class="w">    </span><span class="n">al</span><span class="w"> </span><span class="o">&gt;&gt;=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="c1">// shr al, 1，此时的al为柱面号</span>
+<span class="w">    </span><span class="n">ch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">al</span><span class="p">;</span><span class="w"> </span><span class="c1">// ch：柱面号，已获得</span>
+<span class="w">    </span><span class="n">dh</span><span class="w"> </span><span class="o">&amp;=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="c1">// dh：磁头号，已获得</span>
+<span class="w">    </span><span class="c1">// 至此 LBA 格式的 ax 已经成功转换为 CHS 格式的 cl、ch 和 dh</span>
+<span class="w">    </span><span class="n">pop_from_stack</span><span class="p">(</span><span class="n">bx</span><span class="p">);</span><span class="w"> </span><span class="c1">// 还原bx</span>
+<span class="w">    </span><span class="n">dl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BS_DrvNum</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span><span class="w"> </span><span class="c1">// 获取驱动器号</span>
+<span class="w">    </span><span class="k">do</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">ah</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w"> </span><span class="c1">// ah = 0x02，读盘</span>
+<span class="w">        </span><span class="n">al</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">load</span><span class="p">();</span><span class="w"> </span><span class="c1">// 读取先前保存的cl</span>
+<span class="w">        </span><span class="n">INT</span><span class="p">(</span><span class="mh">0x13</span><span class="p">,</span><span class="w"> </span><span class="n">ah</span><span class="p">,</span><span class="w"> </span><span class="n">al</span><span class="p">,</span><span class="w"> </span><span class="n">ch</span><span class="p">,</span><span class="w"> </span><span class="n">dh</span><span class="p">,</span><span class="w"> </span><span class="n">cl</span><span class="p">,</span><span class="w"> </span><span class="n">dl</span><span class="p">,</span><span class="w"> </span><span class="n">es</span><span class="o">:</span><span class="n">bx</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">flags</span><span class="p">.</span><span class="n">cf</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>什么 <code>inc</code> 啦，<code>shr</code> 啦，<code>and</code> 啦，到底什么意思都已经讲明白了。下面那个 <code>jc</code>，我们也把它表示成了 <code>do-while</code> 的形式。</p>
+<p>那么现在，需要解释清楚的就是几点：1、开头结尾的 <code>push bp</code>、<code>mov bp, sp</code> 和结尾的 <code>pop bp</code> 是在干什么；2、这个 <code>cl</code> 到底存哪去了；3、这个 <code>.GoOnReading</code> 带 <code>.</code> 是在干什么 <del>（虽然我觉得有这个问题的不会多）</del>。</p>
+<p>我们从易到难吧。先说最后一点，这实际上是 <code>nasm</code> 的私货，这种东西不能单独存在，必须长成类似这样：</p>
+<div class="highlight"><pre><span></span><code><span class="nl">xxx:</span>
+<span class="nl">.xxx:</span>
+<span class="nl">aaa:</span>
+</code></pre></div>
+<p>才行。只要现在的代码还在最上面那个 <code>xxx:</code> 之下，访问下面那个 <code>.xxx</code> 就可以直接用 <code>.xxx</code> 的形式，比如 <code>mov</code>、<code>jmp</code>、<code>call</code> 都行；但一旦到了下面那个 <code>aaa:</code> 的下面，就不能再这么做了，如果还想访问上面那个 <code>.xxx</code>，必须通过 <code>xxx.xxx</code> 的方式。或许有人会有疑问：</p>
+<blockquote>
+<p>如果我在 <code>aaa</code> 下面再定义一个 <code>.xxx</code> 呢？</p>
+</blockquote>
+<p>那自然是毫无问题，<code>aaa</code> 下面的代码访问 <code>.xxx</code>，访问的就是 <code>aaa</code> 下面定义的那个，而非 <code>xxx</code> 下面定义的那个。这个东西就类似在别的什么高级编程语言里的私有属性，因此有个名字叫<strong>本地标签</strong>。不过目前知道就行了，具体用处没有体现。</p>
+<p>接下来来解决 1 和 2，这俩其实是同一个问题。<code>push bp</code> 和 <code>mov bp, sp</code> 是 C 语言函数默认带有的两条指令，表示函数开始，所谓的栈帧也就是这个东西。而最后的 <code>pop bp</code>，自然是反过来的操作，表示函数结束，退出栈帧。</p>
+<p>接下来的 <code>mov byte [bp - 2], cl</code>，<code>bp - 2</code> 处此时是个什么地方呢？注意在存完栈帧以后，立刻执行了 <code>sub esp, 2</code>（<code>esp -= 2</code>）的操作，而 <code>bp</code> 则相当于还没减时候的 <code>sp</code>，<code>bp - 2</code> 自然就是现在的 <code>sp</code>。</p>
+<p>说白了，这一番操作其实就相当于：<code>push cl</code>，而已。只不过为了对称，一般有 <code>push</code> 必有 <code>pop</code>，除非返回，而这个位置后面还要用到多次，不能 <code>pop</code>，因此最开头为了对称起见（笑）也就没有用 <code>push</code>。这样一来，<code>cl</code> 和 <code>bx</code> 其实类似，都是被暂存在栈上了，只是 <code>bx</code> 只被用到一次，很快就 <code>pop</code> 掉了，但 <code>cl</code> 被用到多次，一直到最后的 <code>add esp, 2</code> 才相当于把它 <code>pop</code> 了出去。</p>
+<p>好了，<code>ReadSector</code> 就解释完了，不知道大家明白没有（笑），我们继续吧。</p>
 <p>下一步，我们定义几个常量，它们的作用是增加可读性，毕竟满篇写死的根目录大小14之类的，很难让人看懂。</p>
 <p><strong>代码 3-3 放在开头的常量定义（boot.asm）</strong>
 <div class="highlight"><pre><span></span><code><span class="nf">BaseOfStack</span><span class="w">             </span><span class="no">equ</span><span class="w"> </span><span class="mi">07</span><span class="no">c00h</span><span class="w"> </span><span class="c1">; 栈的基址</span>
@@ -1170,10 +1225,29 @@
 <span class="w">    </span><span class="nf">int</span><span class="w"> </span><span class="mi">10</span><span class="no">h</span><span class="w"> </span><span class="c1">; 显示字符</span>
 <span class="w">    </span><span class="nf">ret</span>
 </code></pre></div></p>
+<p>或许有人看不懂这个 <code>DispStr</code> 最开头的三行代码在干什么，把它和那一堆变量转写成 C 会更好理解一点：</p>
+<p><strong>代码 3-5 的转写</strong>
+<div class="highlight"><pre><span></span><code><span class="cp">#define MessageLength 9</span>
+<span class="kt">char</span><span class="w"> </span><span class="n">BootMessage</span><span class="p">[</span><span class="n">MessageLength</span><span class="p">][</span><span class="mi">3</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="s">&quot;Booting  &quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="s">&quot;Ready.   &quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="s">&quot;No LOADER&quot;</span>
+<span class="p">};</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">DispStr</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">bp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BootMessage</span><span class="p">[</span><span class="n">dh</span><span class="p">];</span>
+<span class="w">    </span><span class="c1">// ...下略</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>也就是说，上面的三个 <code>Message</code> 在内存中的排布实际上就是一个二维数组，而 <code>mov ax, MessageLength</code> 和 <code>mul dh</code> 的操作相当于在找它的第 <code>dh</code> 行。</p>
+<p>为什么用 <code>dh</code> 当参数呢？重新翻阅第一节可以知道，这样还顺便指定了行数，确实是一条妙计。</p>
 <p>一切准备工作均已办妥，下面我们开始主循环吧……且慢，我们还有一点点预备知识要补充，下面是 <code>int 13h</code> 的另一种用途。</p>
 <blockquote>
+<p>向下列寄存器中依次存入：</p>
 <p>AH=00h：复位磁盘驱动器</p>
 <p>DL=驱动器号</p>
+<p>然后执行 <code>int 13h</code>。</p>
 <p>返回值：</p>
 <blockquote>
 <p>FLAGS.CF=0：操作成功</p>
@@ -1244,7 +1318,9 @@
 <span class="nl">LABEL_FILENAME_FOUND:</span><span class="w"> </span><span class="c1">; 找到了则到这里</span>
 <span class="w">    </span><span class="nf">jmp</span><span class="w"> </span><span class="no">$</span><span class="w"> </span><span class="c1">; 什么都不做，直接死循环</span>
 </code></pre></div></p>
-<p>代码不长，60多行，虽然不多，作用很强。如果直接按照上文的方法，先 <code>nasm</code> 后 <code>dd</code>，一顿操作猛如虎的话，那么运行结果应该是这样的：</p>
+<p>这一段代码实在是太长了，所以在注释里做了解读。其中还有相当多我们还没有提到的东西，比如 <code>lodsb</code>，比如 <code>dec</code>（这个其实就是 <code>--</code>），以及 <code>jz</code>。鉴于实在太长，也就不提供转写了，感兴趣的读者可以自行当作习题来做（？）</p>
+<p>后面的代码讲的就不会再像第一节和这一节这么详细了，大部分的解读都在注释，所以一定要善用哦。</p>
+<p>如果直接按照上文的方法，先 <code>nasm</code> 后 <code>dd</code>，一顿操作猛如虎的话，那么运行结果应该是这样的：</p>
 <p><img alt="图 3-1 直接运行的结果" src="../images/graph-3-1.png" /></p>
 <p>（图 3-1 直接运行的效果）</p>
 <p>第三行将会出现一个 <code>No LOADER</code> 的标识，虽然不符合预期（应该没有任何输出才对），但这也正好说明了我们的主循环在工作。</p>
@@ -1264,7 +1340,7 @@ rmdir floppy
 <p>无论用什么方式，只要您成功把 <code>Loader</code> 写入了磁盘，便无大碍。总之，写入之后的运行结果是这样的：</p>
 <p><img alt="图 3-2 写入后再运行，第 3 行的 No LOADER 消失不见" src="../images/graph-3-2.png" /></p>
 <p>（图 3-2 写入后再运行，第 3 行已经没有了 <code>No LOADER</code>）</p>
-<p>如果您的运行结果与之相符，那么您就可以进入下一节的学习，我们将要加载我们的 <code>Loader</code>，并跳入其中，这样，我们的可支配空间就从 <code>0.5KB</code> 扩张到了 <code>64KB</code>，足有 <code>128</code> 倍的提升。</p>
+<p>如果您的运行结果与之相符，那么您就可以进入下一节的学习，我们将要加载我们的 <code>Loader</code>，并跳入其中，这样，我们的可支配空间就从 <code>0.5KB</code> 扩张到了 <code>63KB</code>，足有 <code>126</code> 倍的提升。<code>64KB</code> 是一个段的大小，我们的 <code>Loader</code> 就活在一个段里；至于还有 <code>1KB</code> 则是被 <code>org 0100h</code> 给吃了。</p>
 
 
 
