@@ -1065,7 +1065,7 @@
 
 <p>早在第5节，笔者其实就已经说过 <code>GDT</code> 到底是个什么东西了。但是，当时说得不够明确，语焉不详，因此在这里重新说一遍。</p>
 <p>自 8086 时代以来，内存一直是一个PC上必不可少的物件。而在8086的时代，intel的大叔们拍着胸脯说：“内存绝不会超过1MB！”</p>
-<p>然而，哪怕在当时，16位的寄存器最多也只能寻址64KB。于是，intel的大叔们想出了一种绝妙的方法，再加一组16位寄存器，叫做<strong>段寄存器</strong>，也就是 <code>ds</code>、<code>es</code>、<code>fs</code>、<code>gs</code>、<code>ss</code>，这样在寻址时，给段寄存器乘16，再加上原本的地址，就有了 64KB*16+64KB=1088KB 的寻址空间，比1MB刚刚超过一点。剩下的 88KB，intel的大叔们选择让它们指回0~88KB，完美！</p>
+<p>然而，哪怕在当时，16位的寄存器最多也只能寻址64KB。于是，intel的大叔们想出了一种绝妙的方法，再加一组16位寄存器，叫做<strong>段寄存器</strong>，也就是 <code>ds</code>、<code>es</code>、<code>fs</code>、<code>gs</code>、<code>ss</code>，这样在寻址时，给段寄存器乘16，再加上原本的地址，就有了 64KB*16+64KB=1088KB 的寻址空间，比1MB刚刚超过一点。剩下的 64KB，intel的大叔们选择让它们指回0~64KB，完美！</p>
 <p>进入32位之后，由32位寄存器来寻址，寻址空间可达4GB，再这么维持下去就不够用了。同时，32位模式又称“保护”模式，现有的方法也不足以进行“保护”，这就迫切地需要对段进行改革。</p>
 <p>改革的具体方法如下。首先是段寄存器，它们不再是乘以16的这么一个代表，而是一个<strong>选择子</strong>，结构如下：</p>
 <p><img alt="" src="../images/graph-5-4.png" /></p>
@@ -1353,15 +1353,14 @@ run : a.img
 <span class="w">    </span><span class="nf">jmp</span><span class="w"> </span><span class="no">isr_common_stub</span><span class="w"> </span><span class="c1">; 通用部分</span>
 <span class="err">%</span><span class="nf">endmacro</span>
 </code></pre></div></p>
-<p>上面的汇编语法是新游戏哦，解释一下。</p>
-<p>这个东西被称作<strong>宏</strong>，和 C 语言中的 <code>#define</code> 非常相似。第一行的 <code>%macro</code> 表示宏开始，<code>ISR</code> 为宏名，<code>1</code> 为接收参数数量，接收的参数从 <code>%1</code> 开始逐渐递增表示。</p>
-<p>紧接着，就是这个宏展开之后的东西。例如，<code>ISR 0</code> 展开后为：</p>
+<p>这个 <code>%macro</code> 在第五节已经出现过，如果忘了罚你重读。</p>
+<p>这个宏的展开比较有意思。例如，<code>ISR 0</code> 展开后为：</p>
 <div class="highlight"><pre><span></span><code><span class="err">[</span><span class="nf">global</span><span class="w"> </span><span class="no">isr0</span><span class="p">]</span>
 <span class="nl">isr0:</span>
 <span class="w">    </span><span class="nf">push</span><span class="w"> </span><span class="mi">0</span>
 <span class="w">    </span><span class="nf">jmp</span><span class="w"> </span><span class="no">isr_common_stub</span>
 </code></pre></div>
-<p>大概如此，比 <code>#define</code> 略微简单一些，没有 <code>#</code> 和 <code>##</code> 之类的奇怪东西。</p>
+<p>大概如此，汇编里的宏比 <code>#define</code> 简单一些，没有 <code>#</code> 和 <code>##</code> 之类的奇怪东西，想拼接直接卸载后面就可以了。</p>
 <p>其实，这一部分离真正的框架已经相当近了。之所以不完全正确，是因为有的异常有错误码，而有的异常没有，我们需要让栈中的结构保持统一。这就需要我们在没有错误码的异常中压入一个假的错误码。</p>
 <p>查询资料可知，第8、10~14、17、21号异常有错误码，其余异常无错误码，我们需要对其他的异常进行特别关照。</p>
 <p>综上，我们得出的基本框架如下：</p>

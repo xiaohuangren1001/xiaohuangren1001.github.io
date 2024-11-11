@@ -1346,17 +1346,26 @@
 <span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="p">[</span><span class="no">gs</span><span class="p">:((</span><span class="mi">80</span><span class="w"> </span><span class="p">*</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="err">+</span><span class="w"> </span><span class="mi">39</span><span class="p">)</span><span class="w"> </span><span class="p">*</span><span class="w"> </span><span class="mi">2</span><span class="p">)],</span><span class="w"> </span><span class="no">ax</span><span class="w"> </span><span class="c1">; 第1行正中央，白色K</span>
 <span class="w">    </span><span class="nf">jmp</span><span class="w"> </span><span class="no">$</span><span class="w"> </span><span class="c1">; 死循环</span>
 </code></pre></div></p>
-<p>如果您曾经用汇编写过 <code>ELF</code> 的话，不难发现这就是一个 <code>ELF</code> 程序。所以我们要用 <code>ELF</code> 的方式来编译它：
+<p>这里好像出现了很多我们之前的极简 Loader 没有的东西，这个 <code>global</code> 是什么，<code>section .text</code> 又是什么东西，为什么一上来还要定义一个 <code>_start</code>？</p>
+<p>说实话，其实这些都和现在无关，完全是为了以后的考虑。前四节（包括这一节）我们一直在使用汇编，但更多的时候，我们为了方便理解甚至会使用 C 语言转写。如果未来能使用 C 语言，会不会方便得多？只是可惜，如果为了方便，继续使用纯二进制的话，写 C 恐怕会十分复杂，而且不一定能够成功（说多了都是泪.jpg）。</p>
+<p>因此，我们为内核引入了一种可执行文件格式（当然不是我自己写的，我还没那个本事），叫做 <strong>ELF</strong>，全称不想写，目前广泛应用于 Linux 以及自制操作系统中（题外话：现在的自制操作系统可执行文件基本都是 ELF，少数使用 PE，也就是微软家 exe 文件的格式，自创格式的几乎没有）。</p>
+<p>既然有 Linux 撑腰，想要用它自然十分容易，在一开头就下载了 <code>i686-elf-tools-windows.zip</code>（或者 <code>i386-elf-gcc</code> for mac，Linux 自己的 <code>gcc</code> 编译出来就是 ELF），用它包办编译和链接即可。使用下面的命令，即可轻松编译出一个 ELF 来（mac 用户把 <code>i686</code> 改成 <code>i386</code>，linux 用户去掉 <code>i686-elf</code>，链接选项加上 <code>-m elf_i386</code>）。</p>
 <div class="highlight"><pre><span></span><code>nasm -f elf -o kernel.o kernel.asm
 i686-elf-ld -s -o kernel.bin kernel.o
-</code></pre></div></p>
+</code></pre></div>
 <p>写入的命令也要改一下：
 <div class="highlight"><pre><span></span><code>edimg imgin:a.img copy from:loader.bin to:@: copy from:kernel.bin to:@: imgout:a.img
 </code></pre></div></p>
+<p>这样就把 <code>kernel.bin</code> 也给写入到磁盘里来了。</p>
+<blockquote>
+<p>唉唉唉，别想避重就轻，你还没解释那堆东西到底是什么玩意呢。</p>
+</blockquote>
+<p>uhh，好吧。<code>global _start</code> 和 <code>_start:</code> 是给链接器看的，以这种方式告诉链接器，ELF 程序从这里开始执行（ELF 程序的默认入口点都是 <code>_start</code>，这是一个约定。或许有人会问：“那 <code>main</code> 是什么？难道不重要吗？”其实还真的不重要，看看第 23 节没准就能获得解答）。<code>section .text</code> 是给 <code>ld</code> 看的，这样 <code>ld</code> 就会知道“哦，下面的部分都是代码而不是数据”，从而正确设置 ELF。至于为什么能把 <code>section</code> 放进中括号这种取址用的东西里，据说是一部分伪指令的特性，带与不带中括号有一些奇妙的不同；不过在这篇教程的语境下，可以认为它们是一样的。</p>
 <p>再次运行，结果应如下图所示：
 <img alt="" src="../images/graph-5-2.png" />
 （图 5-2 写入内核之后）</p>
 <p>屏幕第四行出现了 <code>Ready.</code>，意味着我们的内核已经被成功读入了，下面我们进入保护模式吧。在保护模式中我们只做两件事：重新放置内核并进入内核，也就是下一节的内容。</p>
+<p>首先来说一下，什么是保护模式？一般而言，我们认为只要有 GDT、 <code>cs</code> 是 GDT 选择子、<code>cr0</code> 寄存器的 PE 位是 1 的时候，当前 CPU 就处于保护模式。至于 GDT 和 <code>cr0</code> 是什么，将在接下来阐明。保护模式分为 16 位和 32 位两种，不过 16 位保护模式非常少见（也不是不可以，只要设置 16 位代码段和数据段就可以了，一个 flag 的事），后文除非特别指明，默认保护模式是 32 位的。</p>
 <p>进入保护模式总共分为 <code>6</code> 步：</p>
 <blockquote>
 <p>1.准备 <code>GDT</code></p>
@@ -1366,13 +1375,16 @@ i686-elf-ld -s -o kernel.bin kernel.o
 <p>5.将 <code>cr0</code> 的第 <code>0</code> 位置 <code>1</code>（<code>PE</code> 位）</p>
 <p>6.通过一个 <code>jmp</code> 指令进入 <code>32</code> 位代码段</p>
 </blockquote>
-<p>这其中出现了很多生词，<code>A20</code> 是啥，中断、<code>cr0</code>、<code>PE</code> 又是什么？容我一一说明。</p>
-<p>首先是 <code>GDT</code>（全局描述符表），它与保护模式下的内存寻址密切相关。保护模式最大有 <code>32</code> 位的变量，因此可以指向 <code>4GB</code> 的内存空间，相比原先的 <code>1MB</code> 已有了很大提升。而原先段:偏移的寻址方案仍然适用，但此时的段值已经不再是地址的一部分，而是 <code>GDT</code> 的索引。</p>
-<p>不过，<code>GDT</code> 的表项就没有这么简单了，它被称为<strong>描述符</strong>。下图是一个描述符结构的简图（节选自《Orange'S：一个操作系统的实现》）：</p>
+<p>这其中又出现了很多生词， <code>A20</code> 是啥，中断又是什么？再加上上面挖的坑，接下来我们一块填了。</p>
+<p>首先是 <code>A20</code>，它是一个什么东西呢？在曾经的 CPU 里，一共有 20 条地址线，编号为 <code>A0</code>~<code>A19</code>，这样就可以访问到共计 2^20=1MB 的内存。但是，后来内存大了，20 根地址线不够用了，到了 80286 时期，又涨到 24 根，这就衍生出了兼容性的问题（你看，又是兼容）：早期的 CPU 对于超过 1MB 的内存会重新指回 0x00，比如访问 <code>FFFF:FFFF</code> 并不会访问到预想中的 <code>0x10FFEF</code>，而是会指回 <code>0xFFEF</code> 去。这又来了五根地址线，不就麻烦了么？</p>
+<p>intel 遂采取一种笨办法，既然多出来这一点会带来问题，那我找个地方，把新来的 <code>A20</code> 一关，不就行了么？你设置的地址是 <code>0x100000</code>，但 A20 一关，实际上相当于不管你第 20 位是多少，通通把它当成 0，于是 1MB 又变回了 <code>0x000000</code>，这就暴力地兼容了以往把内存指回去的方案。80286 还是 16 位，最大还是 <code>0x10FFEF</code> 的内存，所以关一个 A20 就够了；但 80386 以后加了 32 位，从而可以访问 4GB 内存，A21~A31 根本没人管，但 A20 却还是默认关着，只有第 20 位受伤的世界打成了。如果直接进入 32 位模式而不去打开 A20，那就相当于 1<sub>2MB、3</sub>4MB、5~6MB 等内存空间完全无法访问，因为这一位 CPU 不管，所以为了访问到全部内存，必须把 A20 打开。</p>
+<p>唯一的问题就是把 A20 放在哪呢？请欣赏：兼容性问题的终极解决方案，键盘控制器——这里可谓人杰地灵，既要管理键盘，又要管理鼠标，甚至可以用键盘重启电脑，总之不差你一个 A20。于是，intel 就随便扒了一个键盘的空余引脚，用来控制 A20。这么搞唯一的问题就是它实在太慢了，于是又衍生出更多打开 A20 的方案，包括但不限于使用 <code>int 15h</code> 的扩展，以及访问其他端口等。我们使用的是 <code>0x92</code> 端口法，这个端口内的数值，第二位是 1，则表示开启 A20。</p>
+<p>然后是 <code>GDT</code>（全局描述符表），它与 32 位保护模式下的内存寻址密切相关。32 位保护模式最大有 <code>32</code> 位的变量，因此可以指向 <code>4GB</code> 的内存空间，相比原先的 <code>1MB</code> 已有了很大提升。而原先段:偏移的寻址方案仍然适用，但此时的段寄存器值已经不再是地址的一部分，而是一种名叫选择子的鬼东西，后面再谈。</p>
+<p><code>GDT</code> 的表项就没有这么简单了，它被称为<strong>描述符</strong>。下图是一个描述符结构的简图（节选自《Orange'S：一个操作系统的实现》）：</p>
 <p><img alt="" src="../images/graph-5-3.png" /></p>
 <p>（图 5-3 <code>GDT</code> 描述符结构）</p>
 <p>粗看一眼就知道，第 5、6 字节的这些属性也好，段基址和段界限的存放位置也罢，都是需要单独存放的。下面是它们的声明：</p>
-<p><strong>代码 5-5 保护模式下段基址之类的声明（pm.inc）</strong>
+<p><strong>代码 5-5 保护模式下段属性之类的声明（pm.inc）</strong>
 <div class="highlight"><pre><span></span><code><span class="nf">DA_32</span><span class="w">       </span><span class="no">EQU</span><span class="w"> </span><span class="mi">4000</span><span class="no">h</span>
 <span class="nf">DA_LIMIT_4K</span><span class="w"> </span><span class="no">EQU</span><span class="w"> </span><span class="mi">8000</span><span class="no">h</span>
 
@@ -1424,17 +1436,33 @@ i686-elf-ld -s -o kernel.bin kernel.o
 <span class="w">    </span><span class="nf">dw</span><span class="w"> </span><span class="p">(</span><span class="err">%</span><span class="mi">3</span><span class="w"> </span><span class="err">&amp;</span><span class="w"> </span><span class="mi">1</span><span class="no">Fh</span><span class="p">)</span><span class="w"> </span><span class="err">|</span><span class="w"> </span><span class="p">((</span><span class="err">%</span><span class="mi">4</span><span class="w"> </span><span class="err">&lt;&lt;</span><span class="w"> </span><span class="mi">8</span><span class="p">)</span><span class="w"> </span><span class="err">&amp;</span><span class="w"> </span><span class="mi">0</span><span class="no">FF00h</span><span class="p">)</span>
 <span class="w">    </span><span class="nf">dw</span><span class="w"> </span><span class="p">((</span><span class="err">%</span><span class="mi">2</span><span class="w"> </span><span class="err">&gt;&gt;</span><span class="w"> </span><span class="mi">16</span><span class="p">)</span><span class="w"> </span><span class="err">&amp;</span><span class="w"> </span><span class="mi">0</span><span class="no">FFFFh</span><span class="p">)</span>
 <span class="err">%</span><span class="nf">endmacro</span>
+</code></pre></div></p>
+<p>上面用了一堆 <code>equ</code> 的语法的部分都是硬件规程。<code>equ</code> 本质上相当于 C++ 里的 <code>#define</code>，即：<code>#define DA_32 0x4000</code> 之类的。（<code>nasm</code> 里也有 <code>%define</code>，但是用得好像很少，都被 <code>equ</code> 和 <code>%macro</code> 给包了）除此之外，唯一需要解释的可能就是 <code>Descriptor</code> 这一块了（<code>Gate</code> 宏根本没有用到，所以也就不管它）。</p>
+<p>从下面的代码可知，<code>Descriptor</code> 的用法是：<code>Descriptor xxx, xxx, xxx</code>。再由前文可以知道，文本模式显存基址是 <code>0xb8000</code>，与显存段一对比，显然第一个参数是段基址。第三个参数全是各种 <code>DA_</code> 混合在一块，显然是段属性，也就是 GDT 描述符结构那个图里，BYTE6 和 BYTE5 去掉段界限的那一部分。而剩下的第二个参数，也就只能是段界限了。用这个宏最大的好处，无疑是简化了描述符的定义，看看其他的教程和书里是怎么定义描述符的就知道了，他们还在硬凹数位的时候，我们已经用上如此方便的宏了……（笑）不过这个宏也不是笔者的劳动成果，如此自夸怕是不太好 <strong>（前六节内容均基于《Orange'S：一个操作系统的实现》，有能力支持原作喵。至少就前六节而言，相当于这本书的二创了。）</strong>。</p>
+<p>这个宏怎么就能定义出一个描述符呢？先得解释这个奇怪的语法。这个东西是汇编里的宏，和 C 语言中的 <code>#define</code> 非常相似。第一行的 <code>%macro</code> 表示宏开始，<code>Descriptor</code> 为宏名，<code>4</code> 为接收参数数量，接收的参数从 <code>%1</code> 开始逐渐递增表示。</p>
+<p>接下来这一部分，一直到 <code>%endmacro</code> 为止，就是宏的本体了，里面是纯粹的位运算。最后是一个 <code>%endmacro</code>，表示宏结束。这里的宏就是纯粹的文本替换，也就是说，<code>Descriptor 0, 0, 0</code> 会被替换为：</p>
+<div class="highlight"><pre><span></span><code><span class="w">    </span><span class="nf">dw</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="err">&amp;</span><span class="w"> </span><span class="mi">0</span><span class="no">FFFFh</span>
+<span class="w">    </span><span class="nf">dw</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="err">&amp;</span><span class="w"> </span><span class="mi">0</span><span class="no">FFFFh</span>
+<span class="w">    </span><span class="nf">db</span><span class="w"> </span><span class="p">(</span><span class="mi">0</span><span class="w"> </span><span class="err">&gt;&gt;</span><span class="w"> </span><span class="mi">16</span><span class="p">)</span><span class="w"> </span><span class="err">&amp;</span><span class="w"> </span><span class="mi">0</span><span class="no">FFh</span>
+<span class="w">    </span><span class="nf">dw</span><span class="w"> </span><span class="p">((</span><span class="mi">0</span><span class="w"> </span><span class="err">&gt;&gt;</span><span class="w"> </span><span class="mi">8</span><span class="p">)</span><span class="w"> </span><span class="err">&amp;</span><span class="w"> </span><span class="mi">0</span><span class="no">F00h</span><span class="p">)</span><span class="w"> </span><span class="err">|</span><span class="w"> </span><span class="p">(</span><span class="mi">0</span><span class="w"> </span><span class="err">&amp;</span><span class="w"> </span><span class="mi">0</span><span class="no">F0FFh</span><span class="p">)</span>
+<span class="w">    </span><span class="nf">db</span><span class="w"> </span><span class="p">(</span><span class="mi">0</span><span class="w"> </span><span class="err">&gt;&gt;</span><span class="w"> </span><span class="mi">24</span><span class="p">)</span><span class="w"> </span><span class="err">&amp;</span><span class="w"> </span><span class="mi">0</span><span class="no">FFh</span>
 </code></pre></div>
-具体解说就不多言了，总体和上面的图并不违背。</p>
-<p>下一步就是具体解释一下这个段值与 <code>GDT</code> 描述符之间的关系。事实上，这个段值也被称为<strong>选择子</strong>，下面是选择子的结构简图（同样节选自《Orange'S》）：</p>
+<blockquote>
+<p>什么，汇编居然有这么方便的位运算？那第四节 <code>shr</code>、<code>and</code> 半天在干什么呢？</p>
+</blockquote>
+<p>事实上，只有<strong>在编译期间可以被计算的量</strong>，才能够用上这么方便的东西，具体而言，有且只有常数和标签对应的地址是可以在编译期立即知道的。你要是想对一个寄存器做这些，没门，用 x86 指令去；对内存，更没门，这块地方都不知道是不是归内存管（有的外设会在内存里开辟一段空间来，驱动程序通过读写这段内存与外设交互），哪能随便让你算了。</p>
+<p>好了，话说回来，我们来看看这五行都在干什么。</p>
+<p>首先写入两个字节的段界限低 16 位（<code>%2</code> 是第二个参数表段界限），然后是两个字节的段基址低 16 位（<code>%1</code> 是第一个参数表段基址），再往下是一个字节的段基址第 16-23 位。与上面的图对照，正好是 BYTE0~BYTE4 的内容。</p>
+<p>接下来的 BYTE5 到 BYTE6，用了一个 <code>dw</code> 来写入。首先把段界限右移 8 位，把原来第 16~19 位的位置变成第 8~11 位，也就是在 BYTE5~BYTE6 中它实际在的位置，然后用与运算把除了这四位以外的部分都设置成 0。后面则是把第三个参数里，把段界限占领的部分变成 0，最后把两个部分或在一起，拼成一个完整的 BYTE5~BYTE6。最后是段基址的高 8 位，写在 BYTE7。于是，这些位运算就这样把原来的三个参数拼成了内存里 8 字节的描述符。</p>
+<p>下一步就是具体解释一下这个段寄存器里的值与 <code>GDT</code> 描述符之间的关系。事实上，这个段值也被称为<strong>选择子</strong>，下面是选择子的结构简图（同样节选自《Orange'S》）：</p>
 <p><img alt="" src="../images/graph-5-4.png" /></p>
 <p>（图 5-4 选择子结构）</p>
-<p>当 <code>TI</code> 和 <code>RPL</code> 均为0时，不难发现，此时的整个选择子就是描述符的偏移。</p>
+<p>当 <code>TI</code> 和 <code>RPL</code> 均为0时，不难发现，此时的整个选择子就是它对应的描述符的偏移（一个 GDT 占 8 字节。事实上也正是因为一个 GDT 占 8 字节，intel 才敢在低三位塞点私货）。这两个小部分的作用后面还会提及，到第 22 节我们再揭晓。</p>
 <p>那么下一个部分自然就是 <code>lgdt</code> 了，我们需要把下面的结构写入 <code>gdtr</code> 寄存器：</p>
 <p><img alt="" src="../images/graph-5-5.png" /></p>
 <p>（图 5-5 <code>gdtr</code> 结构）</p>
-<p>这个也不难理解，我们只需要按照上图中的结构写入就可以了。</p>
-<p>下一步就是关中断了。中断的具体内容我们放到后面解释，此处我们只需要知道对于这个东西的处理保护模式另有安排，因此为了以后的重新设置，此处暂时关闭。</p>
+<p>这个也不难理解，我们只需要按照上图中的结构写入就可以了。唯一需要注意的是这一段内存会在保护模式下被访问，所以写汇编时有 16 位意义下段的相对地址，要被转化为原来的段基址乘以 16 再加上相对地址的绝对地址。</p>
+<p>下一步就是关中断了。中断的具体内容我们放到后面第 9、10 节解释，此处我们只需要知道对于这个东西的处理保护模式另有安排，因此为了以后的重新设置，此处暂时关闭。</p>
 <p>最后便是 <code>cr0</code>，它属于控制寄存器（Control Register），共有四个（cr0+cr2~4）。下面是 <code>cr0</code> 的结构：</p>
 <p><img alt="" src="../images/graph-5-6.png" /></p>
 <p>（图 5-6 <code>cr0</code> 结构）</p>
@@ -1465,7 +1493,7 @@ i686-elf-ld -s -o kernel.bin kernel.o
 <span class="nf">BaseOfKernelFile</span><span class="w">            </span><span class="no">equ</span><span class="w"> </span><span class="mi">08000</span><span class="no">h</span><span class="w"> </span><span class="c1">; Kernel的基址</span>
 <span class="nf">OffsetOfKernelFile</span><span class="w">          </span><span class="no">equ</span><span class="w"> </span><span class="mi">0</span><span class="no">h</span><span class="w">  </span><span class="c1">; Kernel的偏移</span>
 </code></pre></div></p>
-<p>经过此改动，引导扇区和 <code>loader</code> 的前面几行也应当相应做出更改：</p>
+<p>由于把 <code>BaseOfLoader</code> 和 <code>OffsetOfLoader</code> 也给搬进来了，<code>boot.asm</code> 中的这一部分就可以删除了。因此，引导扇区和 <code>loader</code> 的前面几行也应当相应做出更改：</p>
 <p><strong>代码 5-8 引导扇区头部（boot.asm）</strong>
 <div class="highlight"><pre><span></span><code><span class="w">    </span><span class="nf">org</span><span class="w"> </span><span class="mi">07</span><span class="no">c00h</span><span class="w"> </span><span class="c1">; 告诉编译器程序将装载至0x7c00处</span>
 
@@ -1501,8 +1529,9 @@ i686-elf-ld -s -o kernel.bin kernel.o
 <span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">al</span><span class="p">,</span><span class="w"> </span><span class="err">&#39;</span><span class="no">P</span><span class="err">&#39;</span>
 <span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="p">[</span><span class="no">gs</span><span class="p">:((</span><span class="mi">80</span><span class="w"> </span><span class="p">*</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="err">+</span><span class="w"> </span><span class="mi">39</span><span class="p">)</span><span class="w"> </span><span class="p">*</span><span class="w"> </span><span class="mi">2</span><span class="p">)],</span><span class="w"> </span><span class="no">ax</span><span class="w"> </span><span class="c1">; 这一部分写入显存是通用的</span>
 <span class="w">    </span><span class="nf">jmp</span><span class="w"> </span><span class="no">$</span>
-</code></pre></div>
-下列代码用于进入保护模式。</p>
+</code></pre></div></p>
+<p>开头又是之前没有解释，糊弄过去的 <code>section</code>。除了 <code>.text</code>、<code>.data</code> 这种有特殊意义的名字以外，剩下的名字都只是一种分割的表示，并没有实际的意义。下面的 <code>align 32</code> 和 <code>bits 32</code>，则是先设置内存按 32 位模式对齐，然后告知 nasm “已进入 32 位模式，以下指令请按照 32 位进行解读”。接下来在第 0 行正中央显示一个 <code>P</code>，并没有什么太大的改变，只是 <code>gs</code> 由实模式的 <code>0B800h</code> 变成了保护模式的 <code>SelectorVideo</code>。时刻记住，这样 CPU 会去查找 GDT 的段，并使用 GDT 的段基址来进行相对地址的访问。</p>
+<p>下列代码用于进入保护模式。</p>
 <p><strong>代码 5-11 进入保护模式（loader.asm）</strong>
 <div class="highlight"><pre><span></span><code><span class="nl">LABEL_FILE_LOADED:</span>
 <span class="w">    </span><span class="nf">call</span><span class="w"> </span><span class="no">KillMotor</span><span class="w"> </span><span class="c1">; 关闭软驱马达</span>
@@ -1524,6 +1553,7 @@ i686-elf-ld -s -o kernel.bin kernel.o
 
 <span class="w">    </span><span class="nf">jmp</span><span class="w"> </span><span class="no">dword</span><span class="w"> </span><span class="no">SelectorFlatC</span><span class="p">:(</span><span class="no">BaseOfLoaderPhyAddr</span><span class="w"> </span><span class="err">+</span><span class="w"> </span><span class="no">LABEL_PM_START</span><span class="p">)</span><span class="w"> </span><span class="c1">; 真正进入保护模式</span>
 </code></pre></div></p>
+<p>无非是按照上文的流程完整地做了一遍。重复一下，<strong>若一段内存在保护模式下被访问，则原来 16 位意义下段的相对地址，要被转化为原来的段基址乘以 16 再加上相对地址的绝对地址。</strong> 所以，这里要给 <code>LABEL_PM_START</code> 加上 <code>BaseOfLoaderPhyAddr</code>，后者是 <code>BaseOfLoader</code> 乘 16 的封装。</p>
 <p>编译运行后，如果一切正常的话，运行结果应如下图：
 <img alt="" src="../images/graph-5-7.png" /></p>
 <p>（图 5-7 运行结果）</p>
