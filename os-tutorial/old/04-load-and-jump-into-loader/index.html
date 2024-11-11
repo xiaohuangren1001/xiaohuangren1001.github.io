@@ -473,7 +473,7 @@
         
   
   <span class="md-ellipsis">
-    02 FAT12 文件系统
+    02 创建 FAT12 文件系统
   </span>
   
 
@@ -1064,8 +1064,30 @@
   <h1>04 加载并跳入 Loader</h1>
 
 <p>在执行流到达 <code>LABEL_FILENAME_FOUND</code> 时，此时的 <code>di</code> 应当正好位于 <code>Loader</code> 所在的文件块中。因此，我们可以通过这个方法获得 <code>Loader</code> 的起始扇区。</p>
-<p>获得之后我们便可以做几件事：读取第一个扇区，查找 <code>FAT</code>，读入下一个扇区，直至所有扇区都被读完。</p>
-<p>不难发现我们需要多次查找 <code>FAT</code>，所以我们干脆把查找 <code>FAT</code> 的过程也包装一下，我们将使用 <code>ax</code> 存储待查询的扇区号，查询结果也放入 <code>ax</code> 中。</p>
+<p>至于怎么获得，这就与那个 32 字节文件块的结构有关。</p>
+<div class="highlight"><pre><span></span><code><span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">FILEINFO</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">name</span><span class="p">[</span><span class="mi">8</span><span class="p">],</span><span class="w"> </span><span class="n">ext</span><span class="p">[</span><span class="mi">3</span><span class="p">];</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">type</span><span class="p">,</span><span class="w"> </span><span class="n">reserved</span><span class="p">[</span><span class="mi">10</span><span class="p">];</span>
+<span class="w">    </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">time</span><span class="p">,</span><span class="w"> </span><span class="n">date</span><span class="p">,</span><span class="w"> </span><span class="n">clustno</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">size</span><span class="p">;</span>
+<span class="p">}</span><span class="w">  </span><span class="n">__attribute__</span><span class="p">((</span><span class="n">packed</span><span class="p">))</span><span class="w"> </span><span class="n">fileinfo_t</span><span class="p">;</span>
+</code></pre></div>
+<p>这个结构体就是对文件块的描述，后面我们还会见到它的。其中的 <code>clustno</code> 是它起始的簇，一个簇对应一个扇区。</p>
+<p>从簇号转化到扇区号要怎么办呢？这就不得不提到 FAT12 文件系统的结构了。以下叙述默认下标从 0 开始。</p>
+<p>FAT12 文件系统在磁盘中是这样的：第 0 个扇区，是引导扇区，接下来是两块大小为 9 扇区的 FAT 表，再往下是 14 个扇区的根目录区，剩下的部分都是数据区。</p>
+<p>数据区的每一个扇区，都叫做一个簇。数据区的第 0 个扇区，是第 2 个簇。这个时候或许有人要问了：</p>
+<blockquote>
+<p>那么第 0 个簇和第 1 个簇去哪里了？</p>
+</blockquote>
+<p>它们被 FAT 表给暴力强占了。</p>
+<blockquote>
+<p>FAT 表和数据区不是彼此独立的吗，怎么会发生这种事情？</p>
+</blockquote>
+<p>是这样的，我来解释一下。FAT 表的每一项，都和数据区的簇息息相关，具体而言，FAT 表每一项的索引，都代表着它的索引对应的簇的<strong>下一个簇</strong>是第几个；如果这个数字 <span class="arithmatex"><span class="MathJax_Preview">\ge 0\text{xFF}8</span><script type="math/tex">\ge 0\text{xFF}8</script></span>，则表示这个簇链到此为止，没有下一个簇。一般的实现都把 <span class="arithmatex"><span class="MathJax_Preview">0\text{xFFF}</span><script type="math/tex">0\text{xFFF}</script></span> 作为结束标记。</p>
+<p>然而，不知道因为什么，前两个本该对应 0 号簇和 1 号簇的项，分别存储的是坏簇标记 FF0 和结束标记 FFF。因此，可以使用的第一个簇也就变成了第 2 个。这两个簇不能使用，又不能真空出两个扇区来啥也不干，所以干脆把数据区的第 0 个扇区（也就是第 33 扇区）当成第 2 号簇。</p>
+<p>既然这堆簇排成了一个链表，自然需要知道第一个簇在什么地方，而这个值就保存在文件信息块 <code>fileinfo_t</code> 的 <code>clustno</code> 成员中，偏移量为 <span class="arithmatex"><span class="MathJax_Preview">26</span><script type="math/tex">26</script></span>。</p>
+<p>获得第一个簇以后之后我们便可以做几件事：读取第一个扇区，查找 <code>FAT</code>，读入下一个扇区，直至所有扇区都被读完。</p>
+<p>不难发现我们需要多次查找 <code>FAT</code>，所以我们干脆把查找 <code>FAT</code> 的过程也包装一下，我们将使用 <code>ax</code> 存储待查询的簇号，查询结果也放入 <code>ax</code> 中。</p>
 <p>请把下面的代码放到 <code>ReadSector</code> 之后：</p>
 <p><strong>代码 4-1 读取 <code>FAT</code> 项的函数（boot.asm）</strong>
 <div class="highlight"><pre><span></span><code><span class="nl">GetFATEntry:</span>
@@ -1101,7 +1123,7 @@
 
 <span class="w">    </span><span class="nf">cmp</span><span class="w"> </span><span class="no">byte</span><span class="w"> </span><span class="p">[</span><span class="no">bOdd</span><span class="p">],</span><span class="w"> </span><span class="mi">1</span>
 <span class="w">    </span><span class="nf">jnz</span><span class="w"> </span><span class="no">LABEL_EVEN_2</span><span class="w"> </span><span class="c1">; 是偶数，则进入LABEL_EVEN_2</span>
-<span class="w">    </span><span class="nf">shr</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="c1">; 高4位为真正的FAT项</span>
+<span class="w">    </span><span class="nf">shr</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="c1">; 高12位为真正的FAT项</span>
 <span class="nl">LABEL_EVEN_2:</span>
 <span class="w">    </span><span class="nf">and</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="no">FFFh</span><span class="w"> </span><span class="c1">; 只保留低4位</span>
 
@@ -1110,10 +1132,51 @@
 <span class="w">    </span><span class="nf">pop</span><span class="w"> </span><span class="no">es</span><span class="w"> </span><span class="c1">; 恢复堆栈</span>
 <span class="w">    </span><span class="nf">ret</span>
 </code></pre></div></p>
+<p>这一段代码恐怕也需要解释一下。FAT12 文件系统的 <span class="arithmatex"><span class="MathJax_Preview">12</span><script type="math/tex">12</script></span> 来源于它的 FAT 项大小，每一个 FAT 项占 <span class="arithmatex"><span class="MathJax_Preview">12</span><script type="math/tex">12</script></span> 位；同理，FAT16、FAT32 的 FAT 项分别占 <span class="arithmatex"><span class="MathJax_Preview">16</span><script type="math/tex">16</script></span>、<span class="arithmatex"><span class="MathJax_Preview">32</span><script type="math/tex">32</script></span> 位。后两者由于比较整，所以是直接写在磁盘里；但是前者是一个字节半，直接写的话有整整四位空出来没用，这可不好。</p>
+<p><span class="hidden-content">于是缺德微软就脑子短路没有选择跳过 FAT12 直接发明 FAT16</span></p>
+<p>于是微软就搞出了一套“压缩”方法（说是压缩，每一个 FAT 项还是占一个字节半，其实没有任何优化），把两个 FAT 项硬挤在三个字节里，具体而言是长这样的：</p>
+<table>
+<thead>
+<tr>
+<th>FAT 项</th>
+<th>磁盘中的表示</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>FF0 FFF</code></td>
+<td><code>F0 FF FF</code></td>
+</tr>
+<tr>
+<td><code>abc def</code></td>
+<td><code>bc fa de</code></td>
+</tr>
+</tbody>
+</table>
+<p>这样就搞得很恶心，FAT12 要考虑的细节有一半都来自这个破算法。比如，由于每两个 FAT 项占三个字节，所以极端情况下会出现某个 FAT 项的低八位在扇区 <span class="arithmatex"><span class="MathJax_Preview">a</span><script type="math/tex">a</script></span>，高四位在扇区 <span class="arithmatex"><span class="MathJax_Preview">a+1</span><script type="math/tex">a+1</script></span>，所以读取磁盘时，一次要读两个扇区，读到之后还得费尽心思转换。</p>
+<p>不过，上面的代码中，使用了非常巧妙的方法辗转腾挪，最终只用了五行代码就完成了转换，我们到时候再说。</p>
+<p>说的有点远，我们从第一行开始看。开局存了三个寄存器 <code>es</code>、<code>bx</code> 和 <code>ax</code>，这是因为读取磁盘要用 <code>es</code> 和 <code>bx</code>，而设置新缓冲区要用 <code>ax</code>，所以都得存一下。</p>
+<p>接下来这几行，把 Loader 前面 4KB（0x100 * 16 = 4096 = 4KB）的位置当做缓冲区，然后还原 <code>ax</code>。其实选什么地方当缓冲区并没有什么特别的规定，基本上是想放哪放哪，这里使用 Loader 的开头作为基准只是为了方便。</p>
+<p>还原 <code>ax</code> 以后，由于每两个 FAT 项占三个字节，所以先给它乘 3 找到对应的两个 FAT 项。由于 <code>ax</code> 可能过大，再乘一个 <code>bx</code> 有爆掉 16 位的危险（其实算一算就知道根本不可能），因此 CPU 会把乘积的低 16 位放在 <code>ax</code>，高 16 位放在 <code>dx</code>。注释里使用 <code>dx:ax</code>，算是一种惯用法，表示高 16 位和低 16 位是这两个寄存器，与 <code>es:bx</code> 这种寻址意义不同，需要注意一下。</p>
+<p>那么问题来了，你现在找到了两个一共占三字节的 FAT 项，它们可是缠在一起的，你怎么知道你要找的那个项被塞在了哪两个字节里呢？</p>
+<p>这与 intel 对数据的存储策略密切相关。事实上，那种压缩看似很恶心，也和这种数据存储策略有千丝万缕的联系。这是怎么回事呢？</p>
+<p>我们能直接使用的变量，都是以字节（<code>char</code>）为最小单位。想要访问它的第几位，就需要用位运算来处理。同理，内存处理的最小单位也是字节，低于一个字节的都要用位运算来提取。由此就引发了一个问题：高于一个字节的东西怎么在内存里储存呢？比如这有个两字节的东西：<code>0xAA55</code>，它放在内存里长什么样呢？</p>
+<p>对此，不同的 CPU 有不同的方法，其中最流行的，是<strong>小端</strong>（intel 采用这种模式）和<strong>大端</strong>。还有一些更为复杂的，什么网络序之类的，在此不提。把数按从高字节到低字节的顺序排列，一般的十六进制数都是天然按这种方法排列的，比如：0x12345678，它的高字节就是 <code>0x12</code>，低字节就是 <code>0x78</code>；如果按字节从高到低的顺序顺次写入内存，就叫<strong>大端</strong>，反之就是<strong>小端</strong>。</p>
+<p>比如我要把 0x12345678 存储到 0x100 开头的四个字节。先把数按照从高到低字节顺序排列：0x12、0x34、0x56、0x78。大端按字节从高到低顺序写入内存，也就是 0x100 处存 0x12，0x101 处存 0x34，0x102 处存 0x56，0x103 处存 0x78。小端则反过来，0x100 处存 0x78，0x101 处存 0x56，以此类推。</p>
+<p>这两种排列方式孰优孰劣，我们还真不好判断。不过，用这种视角重新回看上面提到的 FAT 的“压缩”，或许你瞬间就能发现其不对劲之处：按照小端来解释，<code>bc fa de</code> 不仅不抽象，反而刚好是 <code>defabc</code> 的表示！也就是说，微软的这种编码反而很自然，FAT 表变成了一个项正好 1.5 字节的数组。</p>
+<p>这样一来，我要找第 <span class="arithmatex"><span class="MathJax_Preview">k</span><script type="math/tex">k</script></span> 个 FAT 项，只需给 <span class="arithmatex"><span class="MathJax_Preview">k</span><script type="math/tex">k</script></span> 乘 1.5 即可，这一过程又要被拆成乘 3 再除以 2。如果想要找奇数项，和找偶数项实现上略有差别，因此用了 <code>cmp dx, 0</code> 的判断（总算说回到代码了）。顺便一提，<code>div</code> 指令如果发现你在试图除以一个 16 位数，将会把 <code>dx:ax</code> 当作被除数，商仍放在 <code>ax</code>，余数放在 <code>dx</code>。</p>
+<p>这一下可扯得太太太太太远了，我们说回来。在判断奇偶的时候，使用了一个 <code>bOdd</code> 变量，它是在上一节被定义的。最终，执行流都会进入 <code>LABEL_EVEN</code>。</p>
+<p><code>LABEL_EVEN</code> 一上来把 <code>dx</code> 清零，这是为了避免已经没有用的余数影响接下来的除法。然后，把此时的 <code>ax</code> 再除以 512，和刚才一样，商放在 <code>ax</code> 中表示距离 FAT 开头多少个扇区，余数放在 <code>dx</code> 中表示距离扇区开头的偏移。接下来要读取磁盘，由于 <code>dx</code> 被改变，需要暂存一下。接下来把 <code>ax</code> 加上第一个 FAT 起始位置的扇区号，得到它在磁盘中的真正位置，把 <code>cl</code> 设成 2 表示要读两个扇区。从上面的说明中可以知道这是为什么，如果这么快就忘了罚你从头再看一遍。</p>
+<p>读完两个扇区以后把 <code>dx</code> 弹出来，然后加到 <code>bx</code> 上，此时的 <code>bx</code> 和原本一样，应该是 0，所以此时 <code>add bx, dx</code> 就相当于 <code>mov bx, dx</code>。至于为什么要挪到 <code>bx</code> 上，是因为 <code>bx</code> 可以用来访问内存而 <code>dx</code> 不可以。接着，从 <code>es:bx</code>，也就是读到的数据里拿到两个字节的 FAT 项，我们只需要其中的 1.5 字节，所以需要进行一些小小的处理。</p>
+<p>接下来的五行，堪称是这一整段程序最巧妙的五行，充分利用了 intel 是小端的特性。</p>
+<p>我们来手动模拟一下。我想要取第 <span class="arithmatex"><span class="MathJax_Preview">2k+1</span><script type="math/tex">2k+1</script></span> 个 FAT 项，则要把它乘 1.5，变成第 <span class="arithmatex"><span class="MathJax_Preview">3k + 1</span><script type="math/tex">3k + 1</script></span> 字节（小数部分已舍去）开头的两个字节。同理，若要读取第 <span class="arithmatex"><span class="MathJax_Preview">2k</span><script type="math/tex">2k</script></span> 个 FAT 项，则最终会搞到第 <span class="arithmatex"><span class="MathJax_Preview">3k</span><script type="math/tex">3k</script></span> 个字节开头的两个字节。<code>abc</code> 放在低位，是第 <span class="arithmatex"><span class="MathJax_Preview">2k</span><script type="math/tex">2k</script></span> 个项，对应第 <span class="arithmatex"><span class="MathJax_Preview">3k</span><script type="math/tex">3k</script></span> 个字节开头；<code>def</code> 放在高位，是第 <span class="arithmatex"><span class="MathJax_Preview">2k + 1</span><script type="math/tex">2k + 1</script></span> 个项，对应第 <span class="arithmatex"><span class="MathJax_Preview">3k + 1</span><script type="math/tex">3k + 1</script></span> 个字节开头。我们来读两个字节看看，<code>abc</code> 变成了 <code>fabc</code>，<code>def</code> 变成了 <code>defc</code>。那么，对于奇数项而言，首先要右移四位；之后是奇偶项统一的操作，取低 12 位，这样就搞到了我们想要的 FAT 项。</p>
+<p>代码里的五行，也正是这个逻辑。先判断是不是奇数，是奇数就右移四位，随后统一取低 12 位。</p>
+<p>最后返回的时候，按照 C 调用约定默认 <code>ax</code> 是返回值，这里虽然写的是汇编无所谓，但是 <code>ax</code> 是参数，考虑到频繁调用，把 <code>ax</code> 当返回值自有其方便之处在。</p>
+<p>这样一来，总算就把上面那个鬼函数讲完了。</p>
 <p>从代码中也能看到，我们的常量喜加一，把下面的代码放到 <code>SectorNoOfRootDirectory</code> 后面：</p>
 <p><strong>代码 4-2 新常量的定义（boot.asm）</strong>
 <div class="highlight"><pre><span></span><code><span class="nf">SectorNoOfFAT1</span><span class="w">          </span><span class="no">equ</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="c1">; 第一个FAT表的开始扇区</span>
-<span class="nf">DeltaSectorNo</span><span class="w">           </span><span class="no">equ</span><span class="w"> </span><span class="mi">17</span><span class="w"> </span><span class="c1">; 由于第一个簇不用，所以RootDirSectors要-2再加上根目录区首扇区和偏移才能得到真正的地址，故把RootDirSectors-2封装成一个常量（17）</span>
+<span class="nf">DeltaSectorNo</span><span class="w">           </span><span class="no">equ</span><span class="w"> </span><span class="mi">17</span><span class="w"> </span><span class="c1">; 由于前两个簇不用，所以SectorNoOfRootDirectory要-2再加上根目录区大小和簇号才能得到真正的扇区号，故把SectorNoOfRootDirectory-2封装成一个常量（17）</span>
 </code></pre></div></p>
 <p>可以看到，除了上文已经出现的常量以外，还定义了一个 <code>DeltaSectorNo</code>，其作用已经在注释中阐明。</p>
 <p>现在是时候加载并跳入 <code>Loader</code> 了：</p>
@@ -1158,10 +1221,13 @@
 <span class="nl">LABEL_FILE_LOADED:</span>
 <span class="w">    </span><span class="nf">jmp</span><span class="w"> </span><span class="no">BaseOfLoader</span><span class="p">:</span><span class="no">OffsetOfLoader</span><span class="w"> </span><span class="c1">; 跳入Loader！</span>
 </code></pre></div></p>
-<p>下面就是编译运行了，运行结果如下：</p>
+<p>这里的逻辑就比较简单了。首先让 <code>di</code> 指向首簇号，然后让 <code>cx</code> 读取之。然后给 <code>cx</code> 加上一个 <code>DeltaSectorNo</code>，再加 <code>SectorNoOfRootDirectory</code>，把簇号转换成扇区号，再然后就是设置 <code>es</code> 和 <code>bx</code>，并按照 <code>ReadSector</code> 的要求，把扇区号倒腾到 <code>ax</code>。每加载一个扇区就输出一个 <code>.</code>，可以看作一种提示和装饰，由于改变了 <code>ax</code> 和 <code>bx</code> 所以用栈暂存。</p>
+<p>接下来先读取扇区，然后从栈里弹出之前存的首簇号，用它来查找 FAT 项。如果是 <code>0xfff</code>，则说明文件结束，进入 <code>LABEL_FILE_LOADED</code> 文件加载成功的分支；否则，存储现在的 FAT 项（待会接着查），这个 FAT 项同时也是当前簇，所以把它也转换成扇区号，准备进行下一轮读取；<code>bx</code> 也向后移动一个扇区，然后开始读取下一个扇区的内容。</p>
+<p>加载成功以后，自然是直接 <code>jmp</code> 进去。这里用的 <code>jmp xxx:xxx</code>，同时修改代码段和下一条要执行的指令，就相当于进入了 Loader 里去了。前一个 <code>xxx</code> 是代码段的值，后一个 <code>xxx</code> 是下一条要执行的指令，它实际上也是一个寄存器，叫做 <strong><code>EIP</code></strong>，平时只通过 <code>jmp</code>、<code>ret</code>、<code>call</code> 之类的语句修改。</p>
+<p>下面就是编译运行了，如果成功的话，就会执行 Loader 的指令，在屏幕第一行正中央显示一个白色的 <code>L</code>。运行结果如下：</p>
 <p><img alt="图 4-1 成功进入 Loader" src="../images/graph-4-1.png" /></p>
 <p>（图 4-1 成功进入 <code>Loader</code>）</p>
-<p>我们成功了！屏幕第一行正中间出现了一个白色的 <code>L</code>！这意味着我们摆脱了引导扇区的束缚，进入了 <code>Loader</code> 的广阔天地！</p>
+<p>屏幕第一行正中间出现了一个白色的 <code>L</code>，我们成功了！这意味着我们摆脱了引导扇区的束缚，进入了 <code>Loader</code> 的广阔天地！</p>
 <p>在进入保护模式之前，我们最后休整一下。首先用下列代码清屏，它位于 <code>mov sp, BaseOfStack</code> 和 <code>xor ah, ah</code> 之间：</p>
 <p><strong>代码 4-4 清屏（boot.asm）</strong>
 <div class="highlight"><pre><span></span><code><span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="mi">0600</span><span class="no">h</span><span class="w"> </span><span class="c1">; AH=06h：向上滚屏，AL=00h：清空窗口</span>
@@ -1482,7 +1548,9 @@
     
       <script src="../../../assets/javascripts/bundle.83f73b43.min.js"></script>
       
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+        <script src="../../../assets/MathJax.js"></script>
+      
+        <script src="../../../assets/script.js"></script>
       
     
   </body>

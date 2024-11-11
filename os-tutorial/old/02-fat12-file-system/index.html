@@ -20,7 +20,7 @@
     
     
       
-        <title>02 FAT12 文件系统 - Oildum/Atklom's Blog</title>
+        <title>02 创建 FAT12 文件系统 - Oildum/Atklom's Blog</title>
       
     
     
@@ -95,7 +95,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              02 FAT12 文件系统
+              02 创建 FAT12 文件系统
             
           </span>
         </div>
@@ -480,7 +480,7 @@
         
   
   <span class="md-ellipsis">
-    02 FAT12 文件系统
+    02 创建 FAT12 文件系统
   </span>
   
 
@@ -1061,7 +1061,7 @@
                   
 
 
-  <h1>02 FAT12 文件系统</h1>
+  <h1>02 创建 FAT12 文件系统</h1>
 
 <p>前面我们花了极大的篇幅来写一个极简引导扇区的实现，但是本节相比之下就要短很多了，我们要在我们的软盘中创建 FAT12 文件系统，这样后续我们写入 <code>Loader</code> 和 <code>Kernel</code> 就要方便很多了。</p>
 <p>一个磁盘中有没有文件系统，是依靠什么来进行标识的呢？一般而言，每一个文件系统都有特定的一个结构用来描述自己，无论是 ext2 的 metadata 块，还是 FAT12/16/32 在引导扇区中加入的 BPB，都是一种对文件系统的标识。</p>
@@ -1175,7 +1175,9 @@
     
       <script src="../../../assets/javascripts/bundle.83f73b43.min.js"></script>
       
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+        <script src="../../../assets/MathJax.js"></script>
+      
+        <script src="../../../assets/script.js"></script>
       
     
   </body>
