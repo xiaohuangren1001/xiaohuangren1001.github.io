@@ -1154,7 +1154,7 @@
 <span class="w">    </span><span class="n">printk</span><span class="p">(</span><span class="s">&quot;read status: %d</span><span class="se">\n</span><span class="s">file content: %s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span><span class="p">);</span>
 <span class="w">    </span><span class="n">kfree</span><span class="p">(</span><span class="n">buf</span><span class="p">);</span>
 </code></pre></div></p>
-<p><img alt="" src="https://img2024.cnblogs.com/blog/3014678/202407/3014678-20240731174916299-26647108.png" /></p>
+<p><img alt="" src="../images/graph-19-1.png" /></p>
 <p>（图 19-1 读取成功，这里显示的应当是上一节填充的测试内容）</p>
 <p>一刻也没有为读取文件的迅速结束而哀悼，立刻赶到战场的是——删除文件！</p>
 <p>想要删除一个文件，并不需要把文件的所有内容都随机 01 啦、设成 0 或 1 啦这些，非常简单，你只需要让这个文件无法被找到就可以了。</p>
@@ -1209,10 +1209,10 @@
 <span class="w">    </span><span class="n">printk</span><span class="p">(</span><span class="s">&quot;delete status: %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="p">);</span>
 </code></pre></div></p>
 <p>编译，运行，效果如下图所示：</p>
-<p><img alt="" src="https://img2024.cnblogs.com/blog/3014678/202407/3014678-20240731203640099-2117909039.png" /></p>
+<p><img alt="" src="../images/graph-19-2.png" /></p>
 <p>（图 19-2 删除文件疑似成功）</p>
 <p>在命令行中调用 <code>ftls</code>，确认删除成功：</p>
-<p><img alt="" src="https://img2024.cnblogs.com/blog/3014678/202407/3014678-20240731203903462-522677112.png" /></p>
+<p><img alt="" src="../images/graph-19-3.png" /></p>
 <p>（图 19-3 删除成功）</p>
 <p>现在，本节最简单的两个操作——读取和删除，已经完成，我们来进攻最后一个据点——写入。只要写入文件完成，后面就都是软件上的事了。</p>
 <p>为了简单起见，在写入文件时，只支持将整个文件全部覆盖。相信一些开发经验比较丰富的读者已经要说了：</p>
@@ -1301,7 +1301,7 @@
 <span class="w">    </span><span class="n">printk</span><span class="p">(</span><span class="s">&quot;write status: %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="p">);</span>
 </code></pre></div></p>
 <p>编译，运行，效果如下：</p>
-<p><img alt="" src="https://img2024.cnblogs.com/blog/3014678/202407/3014678-20240731212534546-1884160818.png" /></p>
+<p><img alt="" src="../images/graph-19-4.png" /></p>
 <p>（图 19-4 写入文件疑似成功）</p>
 <p>更换上面的测试代码为：</p>
 <p><strong>代码 19-11 写入测试II（kernel/main.c）</strong>
@@ -1313,7 +1313,7 @@
 <span class="w">    </span><span class="n">printk</span><span class="p">(</span><span class="s">&quot;read status: %d</span><span class="se">\n</span><span class="s">file content: %s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span><span class="p">);</span>
 </code></pre></div></p>
 <p>再次编译运行，效果如下：</p>
-<p><img alt="" src="https://img2024.cnblogs.com/blog/3014678/202407/3014678-20240731213803722-955090363.png" /></p>
+<p><img alt="" src="../images/graph-19-5.png" /></p>
 <p>（图 19-5 写入文件成功）</p>
 <p>至此，我们已经彻底完成了 FAT16 的底层实现，下一章，我们来彻底完成文件系统的制作，实现用户可以使用的一套系统调用。</p>
 

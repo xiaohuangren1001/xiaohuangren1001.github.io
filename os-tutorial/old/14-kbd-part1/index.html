@@ -65,11 +65,6 @@
     <label class="md-overlay" for="__drawer"></label>
     <div data-md-component="skip">
       
-        
-        <a href="#14" class="md-skip">
-          跳转至
-        </a>
-      
     </div>
     <div data-md-component="announce">
       
@@ -733,17 +728,6 @@
       
       
       
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  <span class="md-ellipsis">
-    14 终于可以打字了——键盘驱动（下）
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -753,32 +737,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="目录">
-  
-  
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      目录
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#14" class="md-nav__link">
-    <span class="md-ellipsis">
-      14.终于可以打字了——键盘驱动（下）
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
       
     </li>
   
@@ -1090,23 +1048,6 @@
   
   
   
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      目录
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#14" class="md-nav__link">
-    <span class="md-ellipsis">
-      14.终于可以打字了——键盘驱动（下）
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
 </nav>
                   </div>
                 </div>
@@ -1122,7 +1063,6 @@
 
   <h1>14 终于可以打字了——键盘驱动（下）</h1>
 
-<h3 id="14">14.终于可以打字了——键盘驱动（下）<a class="headerlink" href="#14" title="Permanent link">&para;</a></h3>
 <p>欢迎回来，我们继续键盘驱动的旅途。</p>
 <p>首先，是三个最基本的东西：shift、alt 和 ctrl。这三个东西我们完全没有处理，特别是 shift，导致我们现在任何一个大写字母都打不出来。</p>
 <p>修改一下 <code>keyboard.c</code>，先在最开头写下这几个全局变量，记录 shift、alt、ctrl 的状态：</p>
@@ -1227,7 +1167,7 @@
 <span class="p">}</span>
 </code></pre></div></p>
 <p>编译，运行，效果仍应如<strong>图 14-1</strong>所示。</p>
-<p>下面是对回车、退格和 <code>tab</code> 行为的单独处理，我们只需要找出 <code>ENTER</code>、 <code>BACKSPACE</code> 以及 <code>TAB</code> 这两种情况，改为打印 <code>\n</code>、 <code>\b</code> 以及 <code>\t</code>。</p>
+<p>下面是对回车、退格和 <code>tab</code> 行为的单独处理，我们只需要找出 <code>ENTER</code>、 <code>BACKSPACE</code> 以及 <code>TAB</code>，改为打印 <code>\n</code>、 <code>\b</code> 以及 <code>\t</code>。</p>
 <p><strong>代码 14-5 回车、退格与 <code>TAB</code>（drivers/keyboard.c）</strong>
 <div class="highlight"><pre><span></span><code><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">in_process</span><span class="p">(</span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">key</span><span class="p">)</span>
 <span class="p">{</span>
@@ -1500,6 +1440,7 @@
 <span class="w">                </span><span class="n">in_process</span><span class="p">(</span><span class="n">key</span><span class="p">);</span>
 <span class="w">            </span><span class="p">}</span>
 </code></pre></div></p>
+<p>这一部分的算法其实仍旧是简单的枚举。枚举每一个键，看它是不是在小键盘上，有的键不受 NumLock 控制，因此可以不管；有的键受 NumLock 控制，所以根据 NumLock 是否亮起判断到底是原本的键还是要转换一下。</p>
 <p>编译，运行，依次按下小键盘上的：</p>
 <p>Enter、7、8、9、4、5、6、1、2、3、+、-、*、/、.、Enter、Enter、0、0、0、0、0、0、0、0、Enter、Enter，</p>
 <p>然后是不在小键盘上的上下左右方向键，按下 Enter，再按下不在小键盘上的上下左右方向键，效果如下：</p>

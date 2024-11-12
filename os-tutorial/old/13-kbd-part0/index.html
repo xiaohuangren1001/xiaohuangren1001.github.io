@@ -1500,7 +1500,7 @@ run : a.img
 <span class="w">    </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div></p>
-<p><code>FLAG_BREAK</code> 在之前的 <code>keyboard.h</code> 中已有定义，是 <code>0x80</code>。在之前的现象图中观察发现，除了win键以外，每次按下的扫描码比抬起的扫描码少 <code>0x80</code>。因此只需要探测 <code>0x80</code> 是否存在，就可以确定现在的这个键是被按下还是被抬起，选择一个处理即可。</p>
+<p><code>FLAG_BREAK</code> 在之前的 <code>keyboard.h</code> 中已有定义，是 <code>0x80</code>。多启动几次按几个键会发现，除了一部分产生多个扫描码的键以外，每次按下的扫描码比抬起的扫描码少 <code>0x80</code>。因此只需要探测 <code>0x80</code> 是否存在，就可以确定现在的这个键是被按下还是被抬起，选择一个处理即可。</p>
 <p>这就是 <code>else</code> 中第一行的作用，这里选择的是被抬起时进行判断。<code>scancode &amp; 0x7f</code> 可以取得对应的被按下时的扫描码，从而作为 <code>keymap</code> 的索引获得对应的键。</p>
 <p>好了，现在编译运行，等待 <code>task_c</code> 输出完成后，输入 <code>abc123</code>，效果如下：</p>
 <p><img alt="" src="../images/graph-13-4.png" /></p>
