@@ -1066,8 +1066,8 @@
 <p>终于要结束啦（超大声）</p>
 <p>本节先来处理上一节的历史遗留问题，上一节给我们留下了一个巨大的烂摊子：</p>
 <blockquote>
-<p>系统调用中有关应用程序基址偏移的部分需要对不同的系统调用具体问题具体分析，这意味着把那个优美的系统调用表拆成一坨屎一样的 switch-case。
-执行应用程序还没有集成到 shell。事实上这个功能看上去容易，其实也略有复杂，还有两个系统调用（<code>waitpid</code> 和 <code>exit</code>）没有实现。</p>
+<p>系统调用中有关应用程序基址偏移的部分需要对不同的系统调用具体问题具体分析，这意味着把那个优美的系统调用表拆成一坨屎一样的 switch-case。</p>
+<p>执行应用程序还没有集成到 shell。事实上这个功能看上去容易，其实也略有复杂，还有两个系统调用（<code>waitpid</code> 和 <code>exit</code>）没有实现。</p>
 </blockquote>
 <p>单是解决这两个问题可能就要耗去一半的篇幅了，留给我们的时间不多了呀。</p>
 <p>首先我们来把系统调用表拆掉。其实这个东西命不该绝，拆了也会让代码变得很丑，但是为了应用程序的执行，我们也只好挥泪斩马谡，对系统调用表高唱 see you again。现在的 <code>syscall.h</code> 长这样：</p>
@@ -1499,6 +1499,55 @@
 <span class="p">}</span>
 </code></pre></div></p>
 <p>不知道看见这样的程序勾起了你什么回忆呢，总之我是有种回到了刚学 C 语言时的感觉……不煽情了，现在仔细回顾一下这个程序，有什么问题吗？</p>
+<p>看似完美无缺，实际上问题非常严重。或许你曾对 <code>main</code> 函数的返回值谁来接收有疑问，当时的回答是操作系统。现在我们就是操作系统，那这个 <code>main</code> 的返回值，是不是也得接收一下？</p>
+<p>况且在第五节中提过，ELF 程序的真正入口并不是 <code>main</code>，而是 <code>_start</code>，<code>main</code> 只是一个普通的函数而已。因此，我们需要定义一个 <code>_start</code>。</p>
+<p>这个 <code>_start</code> 还是相当好写的，让应用程序接收参数是下一节的话题，不考虑参数的话，只需要调用 <code>main</code>，然后用 <code>exit</code> 结束应用程序即可：</p>
+<p><strong>代码 23-21 简单的入口点（apps/start.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">();</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">_start</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">exit</span><span class="p">(</span><span class="n">main</span><span class="p">());</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>接下来怎么编译呢？直接 <code>gcc</code>？那可不行，我们的“标准库”和 Linux 还是不一样的，得链接上我们的标准库才行。</p>
+<p>对 Makefile 这么修改一下：</p>
+<p><strong>代码 23-22 新的 Makefile（Makefile）</strong>
+<div class="highlight"><pre><span></span><code><span class="nv">LIBC_OBJECTS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>out/syscall_impl.o<span class="w"> </span>out/stdio.o<span class="w"> </span>out/string.o
+
+<span class="nf">out/%.bin </span><span class="o">:</span><span class="w"> </span><span class="n">apps</span>/%.<span class="n">asm</span>
+<span class="w">    </span>nasm<span class="w"> </span>apps/<span class="nv">$*</span>.asm<span class="w"> </span>-o<span class="w"> </span>out/<span class="nv">$*</span>.o<span class="w"> </span>-f<span class="w"> </span>elf
+<span class="w">    </span>i686-elf-ld<span class="w"> </span>-s<span class="w"> </span>-Ttext<span class="w"> </span>0x0<span class="w"> </span>-o<span class="w"> </span>out/<span class="nv">$*</span>.bin<span class="w"> </span>out/<span class="nv">$*</span>.o
+
+<span class="nf">out/tulibc.a </span><span class="o">:</span><span class="w"> </span><span class="k">$(</span><span class="nv">LIBC_OBJECTS</span><span class="k">)</span>
+<span class="w">    </span>i686-elf-ar<span class="w"> </span>rcs<span class="w"> </span>out/tulibc.a<span class="w"> </span><span class="k">$(</span>LIBC_OBJECTS<span class="k">)</span>
+
+<span class="nf">out/%.bin </span><span class="o">:</span><span class="w"> </span><span class="n">apps</span>/%.<span class="n">c</span> <span class="n">apps</span>/<span class="n">start</span>.<span class="n">c</span> <span class="n">out</span>/<span class="n">tulibc</span>.<span class="n">a</span>
+<span class="w">    </span>i686-elf-gcc<span class="w"> </span>-c<span class="w"> </span>-I<span class="w"> </span>include<span class="w"> </span>apps/start.c<span class="w"> </span>-o<span class="w"> </span>out/start.o<span class="w"> </span>-fno-builtin
+<span class="w">    </span>i686-elf-gcc<span class="w"> </span>-c<span class="w"> </span>-I<span class="w"> </span>include<span class="w"> </span>apps/<span class="nv">$*</span>.c<span class="w"> </span>-o<span class="w"> </span>out/<span class="nv">$*</span>.o<span class="w"> </span>-fno-builtin
+<span class="w">    </span>i686-elf-ld<span class="w"> </span>-s<span class="w"> </span>-Ttext<span class="w"> </span>0x0<span class="w"> </span>-o<span class="w"> </span>out/<span class="nv">$*</span>.bin<span class="w"> </span>out/<span class="nv">$*</span>.o<span class="w"> </span>out/start.o<span class="w"> </span>out/tulibc.a
+</code></pre></div></p>
+<p>这里先用了 <code>ar</code>，把我们的“标准库”——<code>stdio.o</code>（<code>printf</code>，<code>sprintf</code>，<code>vprintf</code>，<code>vsprintf</code>）、<code>string.o</code>（<code>mem</code> 系列和 <code>str</code> 系列）以及 <code>syscall_impl.o</code>（系统调用的实现部分）打成了一个库 <code>tulibc.a</code>，取 <code>TUtorialos LIBC</code> 的意思。<code>libc</code> 则是一种描述标准库的通用简写。然后，分别编译 <code>start.c</code> 和应用程序，最后把应用程序本体、<code>start.o</code> 和 <code>tulibc.a</code> 链接在一起，并设定入口点，形成可以让 TutorialOS 执行的应用程序。</p>
+<p>当然，我们也是支持用汇编来编写应用程序的，这个流程就比较简洁，因为没有 <code>main</code> 的特殊包袱，直接编译链接即可。</p>
+<p>下面编译硬盘映像的部分，我们也做了修改。</p>
+<p><strong>代码 23-23 新的 Makefile（续）（Makefile）</strong>
+<div class="highlight"><pre><span></span><code><span class="nv">APPS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>out/test_c.bin
+
+<span class="c"># 中略</span>
+
+<span class="nf">hd.img </span><span class="o">:</span><span class="w"> </span><span class="n">out</span>/<span class="n">boot</span>.<span class="n">bin</span> <span class="n">out</span>/<span class="n">loader</span>.<span class="n">bin</span> <span class="n">out</span>/<span class="n">kernel</span>.<span class="n">bin</span> <span class="k">$(</span><span class="nv">APPS</span><span class="k">)</span>
+<span class="w">    </span>ftimgcreate<span class="w"> </span>hd.img<span class="w"> </span>-t<span class="w"> </span>hd<span class="w"> </span>-size<span class="w"> </span><span class="m">80</span>
+<span class="w">    </span>ftformat<span class="w"> </span>hd.img<span class="w"> </span>-t<span class="w"> </span>hd<span class="w"> </span>-f<span class="w"> </span>fat16
+<span class="w">    </span>ftcopy<span class="w"> </span>out/loader.bin<span class="w"> </span>-to<span class="w"> </span>-img<span class="w"> </span>hd.img
+<span class="w">    </span>ftcopy<span class="w"> </span>out/kernel.bin<span class="w"> </span>-to<span class="w"> </span>-img<span class="w"> </span>hd.img
+<span class="w">    </span>ftcopy<span class="w"> </span>out/test_c.bin<span class="w"> </span>-to<span class="w"> </span>-img<span class="w"> </span>hd.img
+<span class="w">    </span>dd<span class="w"> </span><span class="k">if</span><span class="o">=</span>out/boot.bin<span class="w"> </span><span class="nv">of</span><span class="o">=</span>hd.img<span class="w"> </span><span class="nv">bs</span><span class="o">=</span><span class="m">512</span><span class="w"> </span><span class="nv">count</span><span class="o">=</span><span class="m">1</span>
+</code></pre></div></p>
+<p>在 <code>what you need</code> 的部分，我们新添加了一个 <code>APPS</code> 变量，它代表我们需要编译的所有应用，目前只有一个 <code>test_c.bin</code>。编译出来以后，我们在下面的命令中进行写入。</p>
+<p>现在应该就可以开始运行了。编译，运行，效果如下：</p>
+<p><img alt="" src="../images/graph-23-3.png" />
+（图 23-3 Hello, World!）</p>
+<p>这一节实在是太长了，到此为止吧。下一节我们来支持 <code>malloc</code>，同时为应用程序传参，然后就可以正式结束啦！提前完结撒花.jpg</p>
 
 
 
