@@ -1066,7 +1066,8 @@
 <p>进入保护模式之后我们的目标只有一个，那就是随之跳入内核。不过，既然我们的内核是有格式的（<code>ELF</code>），我们需要先分析一下 <code>ELF</code> 格式到底长什么样子，如下图所示：</p>
 <p><img alt="" src="../images/graph-6-1.png" /></p>
 <p>（图 6-1 <code>ELF</code> 文件结构）</p>
-<p>由于我们需要寻找的是真正的二进制代码的所在位置，所以我们先直接进入对 <code>Program Header</code> 的分析。此处用表就不太合适了，下面的代码便是对 <code>Program Header</code> 结构的描述：</p>
+<p>与程序执行直接相关的只有 <code>Program Header</code>，利用它们头中给定的地址把分割成几个部分的程序依次排列在内存中，ELF 解析工作就完成了，接下来从 ELF 头给定的入口点开始执行即可。</p>
+<p>下面就是对 <code>Program Header</code> 和 ELF 头的描述：</p>
 <p><strong>代码 6-1 <code>Program Header</code></strong>
 <div class="highlight"><pre><span></span><code><span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">Elf32_Word</span><span class="w"> </span><span class="n">p_type</span><span class="p">;</span><span class="w">   </span><span class="c1">// 当前header描述的段类型</span>
@@ -1079,11 +1080,6 @@
 <span class="w">    </span><span class="n">Elf32_Word</span><span class="w"> </span><span class="n">p_align</span><span class="p">;</span><span class="w">  </span><span class="c1">// 确定段在文件和内存中如何对齐</span>
 <span class="p">}</span><span class="w"> </span><span class="n">Elf32_Phdr</span><span class="p">;</span>
 </code></pre></div></p>
-<p>其中的所有数据类型（<code>Elf32_Word</code>、<code>Elf32_Off</code> 和 <code>Elf32_Addr</code>） 均为大小为 <code>4</code>、对齐也为 <code>4</code> 的无符号类型，而 <code>Word</code> 为大整数，<code>Off</code> 为偏移，<code>Addr</code> 为地址。</p>
-<blockquote>
-<p>那么如果一段 <code>ELF</code> 有很多个段该怎么办？我们怎么知道这个 <code>ELF</code> 段的数量？</p>
-</blockquote>
-<p>这时我们就需要前面的 <code>ELF header</code> 了，下面的代码是它的结构：</p>
 <p><strong>代码 6-2 <code>ELF</code> 头</strong>
 <div class="highlight"><pre><span></span><code><span class="cp">#define EI_NIDENT 16</span>
 
@@ -1105,11 +1101,12 @@
 <span class="w">    </span><span class="n">Elf32_Half</span><span class="w"> </span><span class="n">e_shstrndx</span><span class="p">;</span><span class="w">  </span><span class="c1">// 包含 Section 名称的字符串表位于哪一项</span>
 <span class="p">}</span><span class="w"> </span><span class="n">Elf32_Ehdr</span><span class="p">;</span>
 </code></pre></div></p>
-<p>其中出现的新类型只有 <code>Elf32_Half</code>（<code>unsigned char</code> 大家肯定很熟悉就不算了），它代表一个无符号中等大小整数，大小和对齐均为 <code>2</code> 字节。</p>
+<p>其中的所有数据类型（<code>Elf32_Word</code>、<code>Elf32_Off</code> 和 <code>Elf32_Addr</code>） 均为大小为 <code>4</code>、对齐也为 <code>4</code> 的无符号类型，而 <code>Word</code> 为大整数，<code>Off</code> 为偏移，<code>Addr</code> 为地址。至于 <code>Elf32_Half</code>（<code>unsigned char</code> 大家肯定很熟悉就不算了），它代表一个无符号中等大小整数，大小和对齐均为 <code>2</code> 字节。</p>
+<p>由上图可知，给 ELF 头的地址加上 <code>e_phoff</code> 的偏移，后面就是 Program Header 的数组，直接分段复制即可。</p>
 <p>对于 <code>ELF</code> 的研究就到此为止，后续的细节我们在代码当中说明……但此时还有一个小问题，下图是目前的 <code>kernel.bin</code> 的样子。</p>
 <p><img alt="" src="../images/graph-6-2.png" /></p>
 <p>（图 6-2 目前的 <code>kernel.bin</code>）</p>
-<p>我用蓝色标出来的位置，根据计算不难发现是 <code>e_entry</code>，它已经位于0x8000000（128MB）以外，但根据我们的默认设置，我们的内存大小只有128MB。另一方面来讲我们可以通过分页来调低这个位置，但它的具体位置也是不可控的。</p>
+<p>我用蓝色标出来的位置，根据计算不难发现是 <code>e_entry</code>，它已经位于0x8000000（128MB）以外（具体的数值为 0x8048060，读者不妨自行验证），但根据我们的默认设置，我们的内存大小只有128MB。另一方面来讲我们可以通过分页来调低这个位置，但它的具体位置也是不可控的。</p>
 <p>那么我们就只剩下一条路了：手动更改 <code>e_entry</code> 的值。事实上，这个过程只需要修改一下编译命令：</p>
 <div class="highlight"><pre><span></span><code>nasm -f elf -o kernel.o kernel.asm
 i686-elf-ld -s -Ttext 0x100000 -o kernel.bin kernel.o
@@ -1225,6 +1222,7 @@ i686-elf-ld -s -Ttext 0x100000 -o kernel.bin kernel.o
 
 <span class="w">    </span><span class="nf">ret</span>
 </code></pre></div></p>
+<p>基本上就是一个复制 Program Header 的过程，具体的细节注释里都写了。一些比较迷惑的指令（比如 <code>movzx</code>）的含义也已经写在注释里了。</p>
 <p>其中又有很多新的常量：</p>
 <p><strong>代码 6-6 新常量（load.inc）</strong>
 <div class="highlight"><pre><span></span><code><span class="nf">BaseOfLoader</span><span class="w">            </span><span class="no">equ</span><span class="w"> </span><span class="mi">09000</span><span class="no">h</span><span class="w"> </span><span class="c1">; Loader的基址</span>
