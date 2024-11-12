@@ -1244,6 +1244,7 @@
 <span class="n">memman</span><span class="p">.</span><span class="n">free</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">size</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">size</span><span class="p">;</span>
 </code></pre></div></p>
 <p>可以看出来，不管是初始化、分配、还是释放，时间复杂度都是O(1)级别的。虽然表项一多，释放的代码也会跟着多，但总体而言，和释放内存多少并没有关系。如果用位图型的话，那分配和释放多少内存就要写多少个“1”和“0”，这么一看，表格型的时间复杂度也要低一些。</p>
+<p>为了以防读者绕不过来弯，在此特别声明：<strong>内存被分配，是程序拿到了内存，所以内存分配器失去这段内存的管理权；内存被释放，是程序放弃了内存，所以内存分配器拿回这段内存的管理权。</strong>所以，当我们需要给内存分配器一点内存的时候，要调用 <code>free</code> 而不是 <code>alloc</code>。</p>
 <p>好了，我们开始吧。首先把上面的表项依样画葫芦抄下来：</p>
 <p><strong>代码 11-7 表格型内存管理数据结构的定义（include/memory.h）</strong>
 <div class="highlight"><pre><span></span><code><span class="cp">#define MEMMAN_FREES 4090</span>

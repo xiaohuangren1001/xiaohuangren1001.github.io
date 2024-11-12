@@ -1155,7 +1155,7 @@
 <span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">taskctl</span><span class="o">-&gt;</span><span class="n">tasks0</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">flags</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 <span class="w">            </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">taskctl</span><span class="o">-&gt;</span><span class="n">tasks0</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
 <span class="w">            </span><span class="n">task</span><span class="o">-&gt;</span><span class="n">flags</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
-<span class="w">            </span><span class="n">task</span><span class="o">-&gt;</span><span class="n">tss</span><span class="p">.</span><span class="n">eflags</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x00000202</span><span class="p">;</span>
+<span class="w">            </span><span class="n">task</span><span class="o">-&gt;</span><span class="n">tss</span><span class="p">.</span><span class="n">eflags</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x00000202</span><span class="p">;</span><span class="w"> </span><span class="c1">// 打开中断</span>
 <span class="w">            </span><span class="n">task</span><span class="o">-&gt;</span><span class="n">tss</span><span class="p">.</span><span class="n">eax</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="o">-&gt;</span><span class="n">tss</span><span class="p">.</span><span class="n">ecx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="o">-&gt;</span><span class="n">tss</span><span class="p">.</span><span class="n">edx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="o">-&gt;</span><span class="n">tss</span><span class="p">.</span><span class="n">ebx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
 <span class="w">            </span><span class="n">task</span><span class="o">-&gt;</span><span class="n">tss</span><span class="p">.</span><span class="n">ebp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="o">-&gt;</span><span class="n">tss</span><span class="p">.</span><span class="n">esi</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="o">-&gt;</span><span class="n">tss</span><span class="p">.</span><span class="n">edi</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
 <span class="w">            </span><span class="n">task</span><span class="o">-&gt;</span><span class="n">tss</span><span class="p">.</span><span class="n">es</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="o">-&gt;</span><span class="n">tss</span><span class="p">.</span><span class="n">ds</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="o">-&gt;</span><span class="n">tss</span><span class="p">.</span><span class="n">fs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="o">-&gt;</span><span class="n">tss</span><span class="p">.</span><span class="n">gs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
@@ -1167,6 +1167,7 @@
 <span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">NULL</span><span class="p">;</span>
 <span class="p">}</span>
 </code></pre></div></p>
+<p><code>eflags</code> 的这个数值表示新任务默认开启中断。<code>iomap</code> 本意是让应用程序能够执行 <code>in/out</code> 指令所设置，但我们不需要让它执行这些指令，否则到时候执行个应用程序，键盘也不发信号了，时钟也不响了，就连电脑都重启了，所以把它设置成 <code>0x40000000</code>（事实上只要大于等于 103 就可以）表示：当作为应用程序时，不需要执行 <code>in/out</code> 指令。至于 CPU 怎么判断你是不是一个应用程序，第 22 节再说。</p>
 <p>接下来是 <code>task_run</code>，使一个任务开始运行。实际上只是把这个任务加入了 <code>tasks</code> 数组而已。</p>
 <p><strong>代码 12-7 运行任务用 <code>task_run</code>（kernel/mtask.c）</strong>
 <div class="highlight"><pre><span></span><code><span class="kt">void</span><span class="w"> </span><span class="nf">task_run</span><span class="p">(</span><span class="n">task_t</span><span class="w"> </span><span class="o">*</span><span class="n">task</span><span class="p">)</span>
@@ -1177,14 +1178,15 @@
 <span class="p">}</span>
 </code></pre></div></p>
 <p>接下来是 <code>task_switch</code>，真正执行任务切换的部分。不过，我们好像还没有具体讲究竟是怎么任务切换的，我们现在来简单说一下。</p>
-<p>其实非常简单，只需要用 <code>farjmp</code> 就可以了。当执行一个远跳转时，CPU 会检查对应的段是否是代码段，如果不是，就退而求其次检查是不是 TSS。如果是 TSS，就会自动读取 TSS 中的全部寄存器，这之中包括下一步执行哪里的 <code>eip</code>，从而恢复断点，继续执行。</p>
+<p>其实非常简单，只需要用 <code>farjmp</code> 就可以了。当执行一个远跳转（就是我们之前用过的 <code>jmp xxx:xxx</code>）时，CPU 会检查对应的段是否是代码段，如果不是，就退而求其次检查是不是 TSS。如果是 TSS，就会先把当前任务的全部寄存器存到它的 TSS 里，然后自动读取 TSS 中的全部寄存器，这之中包括下一步执行哪里的 <code>eip</code>，从而恢复断点，继续执行。</p>
 <p><strong>代码 12-8 <code>farjmp</code>（lib/nasmfunc.asm）</strong>
 <div class="highlight"><pre><span></span><code><span class="err">[</span><span class="nf">global</span><span class="w"> </span><span class="no">farjmp</span><span class="p">]</span>
 <span class="nl">farjmp:</span>
 <span class="w">    </span><span class="nf">jmp</span><span class="w"> </span><span class="no">far</span><span class="w"> </span><span class="p">[</span><span class="no">esp</span><span class="w"> </span><span class="err">+</span><span class="w"> </span><span class="mi">4</span><span class="p">]</span>
 <span class="w">    </span><span class="nf">ret</span>
 </code></pre></div></p>
-<p>在实际运用中，应在 C 中如此调用：<code>farjmp(eip, cs)</code>。<code>eip</code> 为下一步执行哪里的寄存器，如果跳的是 TSS，那就必须写 0；cs 为跳入的代码段，在这里是 TSS。</p>
+<p>在实际运用中，应在 C 中如此调用：<code>farjmp(eip, cs)</code>。<code>eip</code> 为下一步执行哪里的寄存器，如果跳的是 TSS，那就必须写 0；cs 为跳入的代码段选择子，在这里是 TSS。</p>
+<p>为什么一定要这样呢？这和我们使用了 <code>jmp far [addr]</code> 来进行远跳转有关。你只需要知道，在这种情况下，<code>[addr]</code> 的位置必须写 EIP，<code>[addr + 4]</code> 的位置必须写 cs。</p>
 <p>这样一来，<code>task_switch</code> 就十分简单了。</p>
 <p><strong>代码 12-9 任务切换（kernel/mtask.c）</strong>
 <div class="highlight"><pre><span></span><code><span class="kt">void</span><span class="w"> </span><span class="nf">task_switch</span><span class="p">()</span>
