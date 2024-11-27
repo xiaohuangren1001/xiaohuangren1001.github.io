@@ -1085,7 +1085,7 @@
 <span class="cp">#endif</span>
 </code></pre></div></p>
 <p><code>TSS32</code> 结构体的第二、三行，是任务切换中会随时更改的寄存器。任务切换发生时，会把当时寄存器的值存入 TSS。</p>
-<p>第一、四行与任务切换相关，暂且按下不表。<code>ldtr</code> 这个名字，联想 <code>gdtr</code> 和 <code>idtr</code>，相信各位读者能够推测出它表示什么，第20节我们再回来重翻旧案。</p>
+<p>第一、四行与任务切换相关，暂且按下不表。<code>ldtr</code> 这个名字，联想 <code>gdtr</code> 和 <code>idtr</code>，相信各位读者能够推测出它表示什么，第 22 节我们再回来重翻旧案。</p>
 <p>由于 <code>TSS32</code> 的结构与硬件强相关，显然我们不能用它来代表一个任务，不然想给任务加点什么额外的属性，硬件就要有意见了。所以我们在外面套一层封装，构成 <code>TASK</code> 结构体：</p>
 <p><strong>代码 12-2 表示任务的结构体（include/mtask.h）</strong>
 <div class="highlight"><pre><span></span><code><span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">TASK</span><span class="w"> </span><span class="p">{</span>

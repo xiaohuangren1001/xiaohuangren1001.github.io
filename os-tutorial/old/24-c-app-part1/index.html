@@ -1063,7 +1063,202 @@
 
   <h1>24 C语言应用程序（下）</h1>
 
+<p>欢迎回来。我们本节的任务十分明确：支持 <code>malloc</code>，同时为应用程序传参。</p>
+<p>不过，在一开始我们先来点“轻松”的。或许在第 16 节和第 22 节的时候，有的读者会有这样的疑问：</p>
+<blockquote>
+<p>你 shell 明明集成在内核当中，为什么还要费事去系统调用呢？</p>
+</blockquote>
+<p>所以我们今天的第一个 surprise，就是把 shell 从内核当中给剥离出去，做成一个单独的 app。没有什么原因，只是因为这样泰裤辣！（逃</p>
+<p>上一节已经初步支持了 C 语言应用程序，而我们的 shell 一不用传参，二来在一番微操之下规避了 <code>malloc</code>，因此可以直接放在这个框架里。</p>
+<p>首先来把现在的 <code>shell</code> 改造成一个应用程序一样的东西：</p>
+<p><strong>代码 24-1 现在的 <code>shell</code>（apps/shell.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stddef.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdint.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdbool.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;unistd.h&gt;</span>
 
+<span class="cp">#define MAX_CMD_LEN 100</span>
+<span class="cp">#define MAX_ARG_NR 30</span>
+
+<span class="k">static</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">cmd_line</span><span class="p">[</span><span class="n">MAX_CMD_LEN</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="p">};</span><span class="w"> </span><span class="c1">// 输入命令行的内容</span>
+<span class="k">static</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">argv</span><span class="p">[</span><span class="n">MAX_ARG_NR</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="nb">NULL</span><span class="p">};</span><span class="w"> </span><span class="c1">// argv，字面意思</span>
+
+<span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">print_prompt</span><span class="p">()</span><span class="w"> </span><span class="c1">// 输出提示符</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;[TUTO@localhost /] $ &quot;</span><span class="p">);</span><span class="w"> </span><span class="c1">// 这一部分大家随便改，你甚至可以改成&gt;&gt;&gt;</span>
+<span class="p">}</span>
+
+<span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">readline</span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">cnt</span><span class="p">)</span><span class="w"> </span><span class="c1">// 输入一行或cnt个字符</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">pos</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buf</span><span class="p">;</span><span class="w"> </span><span class="c1">// 不想变buf</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">read</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">pos</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">-1</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">(</span><span class="n">pos</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">buf</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">cnt</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// 读字符成功且没到cnt个</span>
+<span class="w">        </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">pos</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="sc">&#39;\n&#39;</span><span class="p">:</span>
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="sc">&#39;\r&#39;</span><span class="p">:</span><span class="w"> </span><span class="c1">// 回车或换行，结束</span>
+<span class="w">                </span><span class="o">*</span><span class="n">pos</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">                </span><span class="n">putchar</span><span class="p">(</span><span class="sc">&#39;\n&#39;</span><span class="p">);</span><span class="w"> </span><span class="c1">// read不自动回显，需要手动补一个\n</span>
+<span class="w">                </span><span class="k">return</span><span class="p">;</span><span class="w"> </span><span class="c1">// 返回</span>
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="sc">&#39;\b&#39;</span><span class="p">:</span><span class="w"> </span><span class="c1">// 退格</span>
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">buf</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="sc">&#39;\b&#39;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// 如果不在第一个</span>
+<span class="w">                    </span><span class="o">--</span><span class="n">pos</span><span class="p">;</span><span class="w"> </span><span class="c1">// 指向上一个位置</span>
+<span class="w">                    </span><span class="n">putchar</span><span class="p">(</span><span class="sc">&#39;\b&#39;</span><span class="p">);</span><span class="w"> </span><span class="c1">// 手动输出一个退格</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">                </span><span class="k">break</span><span class="p">;</span>
+<span class="w">            </span><span class="k">default</span><span class="o">:</span>
+<span class="w">                </span><span class="n">putchar</span><span class="p">(</span><span class="o">*</span><span class="n">pos</span><span class="p">);</span><span class="w"> </span><span class="c1">// 都不是，那就直接输出刚输入进来的东西</span>
+<span class="w">                </span><span class="n">pos</span><span class="o">++</span><span class="p">;</span><span class="w"> </span><span class="c1">// 指向下一个位置</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="nf">cmd_parse</span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">cmd_str</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">**</span><span class="n">argv</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">token</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">arg_idx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">arg_idx</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">MAX_ARG_NR</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">argv</span><span class="p">[</span><span class="n">arg_idx</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">NULL</span><span class="p">;</span>
+<span class="w">        </span><span class="n">arg_idx</span><span class="o">++</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="c1">// 开局先把上一个argv抹掉</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">next</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cmd_str</span><span class="p">;</span><span class="w"> </span><span class="c1">// 下一个字符</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">argc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="c1">// 这就是要返回的argc了</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">next</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// 循环到结束为止</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">next</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="sc">&#39;&quot;&#39;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">next</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">token</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="n">next</span><span class="o">++</span><span class="p">;</span><span class="w"> </span><span class="c1">// 多个token就只保留第一个，windows cmd就是这么处理的</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">next</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="k">break</span><span class="p">;</span><span class="w"> </span><span class="c1">// 如果跳过完token之后结束了，那就直接退出</span>
+<span class="w">            </span><span class="n">argv</span><span class="p">[</span><span class="n">argc</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">next</span><span class="p">;</span><span class="w"> </span><span class="c1">// 将首指针赋值过去，从这里开始就是当前参数</span>
+<span class="w">            </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">next</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">*</span><span class="n">next</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">token</span><span class="p">)</span><span class="w"> </span><span class="n">next</span><span class="o">++</span><span class="p">;</span><span class="w"> </span><span class="c1">// 跳到下一个token</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">next</span><span class="o">++</span><span class="p">;</span><span class="w"> </span><span class="c1">// 跳过引号</span>
+<span class="w">            </span><span class="n">argv</span><span class="p">[</span><span class="n">argc</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">next</span><span class="p">;</span><span class="w"> </span><span class="c1">// 这里开始就是当前参数</span>
+<span class="w">            </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">next</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">*</span><span class="n">next</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="sc">&#39;&quot;&#39;</span><span class="p">)</span><span class="w"> </span><span class="n">next</span><span class="o">++</span><span class="p">;</span><span class="w"> </span><span class="c1">// 跳到引号</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">next</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// 如果这里有token字符</span>
+<span class="w">            </span><span class="o">*</span><span class="n">next</span><span class="o">++</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="c1">// 将当前token字符设为0（结束符），next后移一个</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">argc</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">MAX_ARG_NR</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span><span class="w"> </span><span class="c1">// 参数太多，超过上限了</span>
+<span class="w">        </span><span class="n">argc</span><span class="o">++</span><span class="p">;</span><span class="w"> </span><span class="c1">// argc增一，如果最后一个字符是空格时不提前退出，argc会错误地被多加1</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">argc</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">cmd_ver</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">**</span><span class="n">argv</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">puts</span><span class="p">(</span><span class="s">&quot;TutorialOS Indev&quot;</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">try_to_run_external</span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="n">exist</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">ret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">create_process</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">cmd_line</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;/&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="o">*</span><span class="n">exist</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">ret</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">-1</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kt">char</span><span class="w"> </span><span class="n">new_name</span><span class="p">[</span><span class="n">MAX_CMD_LEN</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="p">};</span>
+<span class="w">        </span><span class="n">strcpy</span><span class="p">(</span><span class="n">new_name</span><span class="p">,</span><span class="w"> </span><span class="n">name</span><span class="p">);</span>
+<span class="w">        </span><span class="kt">int</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">strlen</span><span class="p">(</span><span class="n">name</span><span class="p">);</span>
+<span class="w">        </span><span class="n">new_name</span><span class="p">[</span><span class="n">len</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sc">&#39;.&#39;</span><span class="p">;</span>
+<span class="w">        </span><span class="n">new_name</span><span class="p">[</span><span class="n">len</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sc">&#39;b&#39;</span><span class="p">;</span>
+<span class="w">        </span><span class="n">new_name</span><span class="p">[</span><span class="n">len</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">2</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sc">&#39;i&#39;</span><span class="p">;</span>
+<span class="w">        </span><span class="n">new_name</span><span class="p">[</span><span class="n">len</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">3</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sc">&#39;n&#39;</span><span class="p">;</span>
+<span class="w">        </span><span class="n">new_name</span><span class="p">[</span><span class="n">len</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">4</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sc">&#39;\0&#39;</span><span class="p">;</span>
+<span class="w">        </span><span class="n">ret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">create_process</span><span class="p">(</span><span class="n">new_name</span><span class="p">,</span><span class="w"> </span><span class="n">cmd_line</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;/&quot;</span><span class="p">);</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">ret</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">-1</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="o">*</span><span class="n">exist</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">    </span><span class="n">ret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">waitpid</span><span class="p">(</span><span class="n">ret</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">ret</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">cmd_execute</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">**</span><span class="n">argv</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">strcmp</span><span class="p">(</span><span class="s">&quot;ver&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">cmd_ver</span><span class="p">(</span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="n">argv</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kt">int</span><span class="w"> </span><span class="n">exist</span><span class="p">;</span>
+<span class="w">        </span><span class="kt">int</span><span class="w"> </span><span class="n">ret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">try_to_run_external</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="w"> </span><span class="o">&amp;</span><span class="n">exist</span><span class="p">);</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">exist</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;shell: `%s` is not recognized as an internal or external command or executable file.</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">ret</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;shell: app `%s` exited abnormally, retval: %d (0x%x).</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="w"> </span><span class="n">ret</span><span class="p">,</span><span class="w"> </span><span class="n">ret</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">shell</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">puts</span><span class="p">(</span><span class="s">&quot;TutorialOS Indev (tags/Indev:WIP, Jun 26 2024, 21:09) [GCC 32bit] on baremetal&quot;</span><span class="p">);</span><span class="w"> </span><span class="c1">// 看着眼熟？这一部分是从 Python 3 里模仿的</span>
+<span class="w">    </span><span class="n">puts</span><span class="p">(</span><span class="s">&quot;Type </span><span class="se">\&quot;</span><span class="s">ver</span><span class="se">\&quot;</span><span class="s"> for more information.</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span><span class="w"> </span><span class="c1">// 示例，只打算支持这一个</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// 无限循环</span>
+<span class="w">        </span><span class="n">print_prompt</span><span class="p">();</span><span class="w"> </span><span class="c1">// 输出提示符</span>
+<span class="w">        </span><span class="n">memset</span><span class="p">(</span><span class="n">cmd_line</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">MAX_CMD_LEN</span><span class="p">);</span>
+<span class="w">        </span><span class="n">readline</span><span class="p">(</span><span class="n">cmd_line</span><span class="p">,</span><span class="w"> </span><span class="n">MAX_CMD_LEN</span><span class="p">);</span><span class="w"> </span><span class="c1">// 输入一行命令</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">cmd_line</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="k">continue</span><span class="p">;</span><span class="w"> </span><span class="c1">// 啥也没有，是换行，直接跳过</span>
+<span class="w">        </span><span class="kt">int</span><span class="w"> </span><span class="n">argc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cmd_parse</span><span class="p">(</span><span class="n">cmd_line</span><span class="p">,</span><span class="w"> </span><span class="n">argv</span><span class="p">,</span><span class="w"> </span><span class="sc">&#39; &#39;</span><span class="p">);</span><span class="w"> </span><span class="c1">// 解析命令，按照cmd_parse的要求传入，默认分隔符为空格</span>
+<span class="w">        </span><span class="n">cmd_execute</span><span class="p">(</span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="n">argv</span><span class="p">);</span><span class="w"> </span><span class="c1">// 执行</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">puts</span><span class="p">(</span><span class="s">&quot;shell: PANIC: WHILE (TRUE) LOOP ENDS! RUNNNNNNN!!!&quot;</span><span class="p">);</span><span class="w"> </span><span class="c1">// 到不了，不解释</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">shell</span><span class="p">();</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>从上面的文件名就可以知道，我们已经把 <code>shell</code> 挪到了 <code>apps</code> 目录下；同时，在最后也加了一个 <code>int main()</code>，虽然说可以直接在 <code>shell()</code> 上改，但留点遗存也不是不行（？）</p>
+<p>下面引入了一堆头文件，其中的 <code>unistd.h</code> 是上一节所造，<code>stdio.h</code> 早已有之，剩下的 <code>stdint.h</code>、 <code>stdbool.h</code> 以及 <code>stddef.h</code> 是从 <code>common.h</code> 里分离出来的产物：</p>
+<p><strong>代码 24-2 三个头文件（include/stdint.h、include/stdbool.h、include/stddef.h）</strong>
+<div class="highlight"><pre><span></span><code><span class="cp">#ifndef _STDINT_H_</span>
+<span class="cp">#define _STDINT_H_</span>
+
+<span class="k">typedef</span><span class="w"> </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w">   </span><span class="kt">uint32_t</span><span class="p">;</span>
+<span class="k">typedef</span><span class="w">          </span><span class="kt">int</span><span class="w">   </span><span class="kt">int32_t</span><span class="p">;</span>
+<span class="k">typedef</span><span class="w"> </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">short</span><span class="w"> </span><span class="kt">uint16_t</span><span class="p">;</span>
+<span class="k">typedef</span><span class="w">          </span><span class="kt">short</span><span class="w"> </span><span class="kt">int16_t</span><span class="p">;</span>
+<span class="k">typedef</span><span class="w"> </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w">  </span><span class="kt">uint8_t</span><span class="p">;</span>
+<span class="k">typedef</span><span class="w">          </span><span class="kt">char</span><span class="w">  </span><span class="kt">int8_t</span><span class="p">;</span>
+
+<span class="cp">#endif</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="cp">#ifndef _STDBOOL_H_</span>
+<span class="cp">#define _STDBOOL_H_</span>
+
+<span class="k">typedef</span><span class="w"> </span><span class="kt">_Bool</span><span class="w"> </span><span class="kt">bool</span><span class="p">;</span>
+<span class="cp">#define true 1</span>
+<span class="cp">#define false 0</span>
+
+<span class="cp">#endif</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="cp">#ifndef _STDDEF_H_</span>
+<span class="cp">#define _STDDEF_H_</span>
+
+<span class="cp">#define NULL ((void *) 0)</span>
+
+<span class="cp">#endif</span>
+</code></pre></div></p>
+<p>如你所见，这三个头文件基本上全都很短小，什么安全保护措施也没加，毕竟纯玩玩也用不到，到时候从什么地方copy一个就行了（bushi）。</p>
+<p>另外，在 <code>stdio.h</code> 中把 <code>#include "common.h"</code> 替换成了 <code>#include "string.h"</code> 和 <code>#include "stdint.h"</code> 两行，在 <code>unistd.h</code> 的函数声明开始前增加了一行 <code>#include "stdint.h"</code>。这样做是为了确保这些标准库文件与操作系统文件无关 <del>其实就是闲的</del>。</p>
+<p>接下来在 <code>kernel_main</code> 启动 <code>shell</code> 的部分也要修改：</p>
+<p><strong>代码 24-3 启动 shell（kernel/main.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="kt">void</span><span class="w"> </span><span class="nf">kernel_main</span><span class="p">()</span><span class="w"> </span><span class="c1">// kernel.asm会跳转到这里</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">monitor_clear</span><span class="p">();</span>
+<span class="w">    </span><span class="n">init_gdtidt</span><span class="p">();</span>
+<span class="w">    </span><span class="n">init_memory</span><span class="p">();</span>
+<span class="w">    </span><span class="n">init_timer</span><span class="p">(</span><span class="mi">100</span><span class="p">);</span>
+<span class="w">    </span><span class="n">init_keyboard</span><span class="p">();</span>
+<span class="w">    </span><span class="k">asm</span><span class="p">(</span><span class="s">&quot;sti&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="n">task_init</span><span class="p">();</span>
+
+<span class="w">    </span><span class="n">sys_create_process</span><span class="p">(</span><span class="s">&quot;shell.bin&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;/&quot;</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">task_exit</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p><code>task_a</code> 变量从头到尾没有被用到，因此就删了。下面的 <code>sys_create_process</code> 实质上开启了一个新任务执行 <code>shell.bin</code>。最后，调用 <code>task_exit(0)</code> 退出当前任务，于是操作系统就进入后台，而主要是 ring3 用户层的 <code>shell</code> 在起交互作用了。</p>
+<p>在 <code>Makefile</code> 的 <code>APPS</code> 中加入 <code>out/shell.bin</code>，<code>OBJS</code> 中删除 <code>out/shell.o</code>，完成最后的交接。<code>shell</code> 的地位甚至因此还提升了（？）</p>
+<p>最后当然是编译运行啦：</p>
+<p><img alt="" src="../images/graph-24-1.png" />
+（图 24-1 效果）</p>
+<p>执行内部命令还是应用程序都没问题，不过按理来说也算理所应当吧，到最后也没做多少修改（笑）。</p>
 
 
 

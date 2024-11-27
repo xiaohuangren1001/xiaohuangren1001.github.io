@@ -1173,6 +1173,15 @@
 <span class="nl">.flush:</span>
 <span class="w">    </span><span class="nf">ret</span><span class="w"> </span><span class="c1">; 完成</span>
 </code></pre></div></p>
+<p>注释里提到了一个“编译器约定”，这个约定是传参数时候的约定；而在函数调用上，硬件本身也有一些规定，在这里一并说一说。</p>
+<p>无论是在哪种模式下，但凡调用函数，基本都涉及一个返回的问题。既然要返回，我就得时时刻刻知道要返回到什么位置，返回地址这个东西就得保存，保在什么地方呢？intel 方面选择了 <code>esp</code> 的位置，也就是当前栈顶就是待返回的位置。</p>
+<p>接下来一个自然的想法，就是把函数有关的东西全都放在栈里。由于 32 位模式地址可达 4 字节，因此下一个可用的位置是 <code>esp + 4</code>，这个参数又可以占用 4 字节，下一个可用的位置就是 <code>esp + 8</code>，以此类推。事实上，这正是 gcc 传参使用的模式（其实也可以指定 gcc 使用寄存器，<code>__attribute__((regparm(xxx)))</code> 其中 <code>xxx</code> 表示使用寄存器传参的个数）。</p>
+<p>需要注意的是，返回的流程实际上就是 <code>jmp [esp]</code>（默认栈平衡由被调用方保证，因此在最后栈顶应该回归到返回地址处）这么一个流程（当然还包括一些细节操作实际上比这复杂），所以只要随便找个地方写一个地址，然后把那个地方设成栈顶再调用 <code>ret</code>，即使根本没有调用函数，一样可以起到“从函数返回”的效果。</p>
+<p>这样的操作有什么用呢？在同一个地址段当然没什么用，这样做甚至有些多余（完全可以直接 <code>jmp</code>）。这样做真正的用途，是在后面第 22 节的启动应用程序，以及 64 位模式下的时候，操作系统层级的 <code>farjmp</code>（直接 <code>jmp</code> 到其他地址段，使用例：<code>jmp new_cs:new_ip</code>）/<code>farcall</code>（直接 <code>call</code> 其他地址段的函数，使用例：<code>call new_cs:new_eip</code>）被禁用，只能使用这样的方式来代替直接跳转。同样地，<code>farcall</code> 需要对应 <code>farret</code> 来返回，而 <code>farjmp</code> 则和普通 <code>jmp</code> 一样一般不考虑返回。</p>
+<p>那么这种 <code>farjmp/farcall</code> 与普通的 <code>jmp/call</code> 有什么区别呢？首先无疑是同时改变了 <code>cs</code> 的值，而 <code>cs</code> 除开这两种方法外，就只剩下 <code>farret</code> 一种改变方法了。硬说还有什么区别，也就只剩下栈了。<code>farjmp</code> 对栈倒是没什么改动，<code>farcall</code> 则会在栈里同时存一下几样东西：</p>
+<p><code>esp</code> -&gt; 返回时 <code>eip</code>；<code>esp - 4</code> -&gt; 返回时 <code>cs</code>；<code>esp - 8</code> -&gt; 返回时 <code>esp</code>；<code>esp - 12</code> -&gt; 返回时 <code>ss</code>。</p>
+<p>而在 <code>farret</code> 的时候，也就会把这四样东西从栈里弹出，最后进行一个相当于 <code>farjmp</code> 的操作，把 <code>cs</code> 和 <code>eip</code> 变“回去”。按照上面 <code>ret</code> 的道理，同样可以在栈里提前 <code>push</code> 好这四样东西，然后执行一个 <code>farret</code>（这个直接 <code>retf</code> 就行）同时设置好这四个寄存器的同时更改执行流。</p>
+<p>扯得有点远了，稍微往回收一收。在接下来的操作应该都不难懂，最难以理解的地方也就是 <code>lgdt [eax]</code> 了。这是因为我们传入的是 <code>gdt_ptr</code> 结构体的<strong>地址</strong>，需要加一个 <code>[gdt_ptr]</code> 来获得它对应内存里的具体数值。再往下直接 <code>mov</code> 和上面解释过的 <code>farjmp</code> 应该没什么需要说的，由于 GDT 发生改动，所以需要重新设置段寄存器的值。</p>
 <p>由于新增了一个文件夹，在这里顺便更新一下 Makefile：</p>
 <p><strong>代码 9-7 现在的Makefile（Makefile）</strong>
 <div class="highlight"><pre><span></span><code>OBJS = out/kernel.o out/common.o out/monitor.o out/main.o out/gdtidt.o out/nasmfunc.o
@@ -1360,7 +1369,7 @@ run : a.img
 <span class="w">    </span><span class="nf">push</span><span class="w"> </span><span class="mi">0</span>
 <span class="w">    </span><span class="nf">jmp</span><span class="w"> </span><span class="no">isr_common_stub</span>
 </code></pre></div>
-<p>大概如此，汇编里的宏比 <code>#define</code> 简单一些，没有 <code>#</code> 和 <code>##</code> 之类的奇怪东西，想拼接直接卸载后面就可以了。</p>
+<p>大概如此，汇编里的宏比 <code>#define</code> 简单一些，没有 <code>#</code> 和 <code>##</code> 之类的奇怪东西，想拼接直接写在后面就可以了。</p>
 <p>其实，这一部分离真正的框架已经相当近了。之所以不完全正确，是因为有的异常有错误码，而有的异常没有，我们需要让栈中的结构保持统一。这就需要我们在没有错误码的异常中压入一个假的错误码。</p>
 <p>查询资料可知，第8、10~14、17、21号异常有错误码，其余异常无错误码，我们需要对其他的异常进行特别关照。</p>
 <p>综上，我们得出的基本框架如下：</p>
