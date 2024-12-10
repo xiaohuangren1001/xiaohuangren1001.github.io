@@ -1620,7 +1620,7 @@
 </code></pre></div></p>
 <p>我们不仅添加了 <code>c4.bin</code>，还添加了 <code>test_c.c</code> 和 <code>c4.c</code>。因为 <code>c4</code> 其实是一个小型的 C 解释器，可以直接执行 C 代码，但它是移植来的，这里不多做讲解。总之，既然能执行 C 代码，就得有 C 代码，<code>c4.c</code> 和 <code>test_c.c</code> 就是两个规模大和规模小的测试文件。</p>
 <p>现在终于可以编译运行，效果应如下图：</p>
-<p><img alt="" src="../images/graph-23-3.png" />
+<p><img alt="" src="../images/graph-24-2.png" />
 （图 24-2 来自 c4 的 Hello, World!）</p>
 <p>首先执行了编译的原生 <code>test_c</code>，然后用 <code>c4</code> 执行源代码 <code>test_c.c</code>，都没有问题；后来又先用 <code>c4</code> 自己运行自己 <code>c4.c</code>，然后再执行 <code>test_c.c</code>，再往下甚至又多套了一层，也是毫无问题。当然了，执行速度肯定是顺次往下越来越慢。<code>c4</code> 里也用到了 <code>malloc</code>，一石二鸟，这说明我们做的工作都成功了！</p>
 <p>忽然想起我们分配的资源来，之前在 <code>exit</code> 的时候都没有妥善释放，但经过测试，<code>exit</code> 的时候释放会出现莫名其妙的问题，所以只能放在 <code>wait</code> 里释放了，不知道这算不算一种我们 OS 特有的僵尸进程……（笑）</p>
