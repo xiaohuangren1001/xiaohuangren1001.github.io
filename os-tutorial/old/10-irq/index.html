@@ -1065,104 +1065,87 @@
 
 <p>第9节中，我们设置的异常是一种内部的中断。而本节，我们将要接收来自外部设备的中断。</p>
 <p>话说回来，我们前面一直提到中断，到底什么是中断？字面意思上讲，就是你正在持续的工作被突然打断。发挥联想记忆，可以知道，中断实际上就是在操作系统正常运行的过程中，让它被迫接收的信号。</p>
-<p>与现实生活中的中断不同，操作系统中，中断是操作系统<strong>最本质的驱动力</strong>，如果没有中断，一切都会非常复杂，CPU将花费大量的时间查询设备状态；而现在，不同的硬件会发不同的中断信号，在接收的过程中慢慢处理即可。</p>
+<p>与现实生活中的中断不同，操作系统中，中断是操作系统<strong>最本质的驱动力</strong>，如果没有中断，一切都会非常复杂，CPU将花费大量的时间查询设备状态；而现在，不同的硬件会发不同的中断信号，在接收的过程中慢慢处理即可。我们的中断像是打断正常工作，而 CPU 里的中断像是打断以回到正常工作，听起来似乎截然相反。</p>
 <p>扯得有点多，往回收收。由于0-31号IDT已经归给了异常，现在又有16个外设中断信号，那么最自然的想法，就是把它们放置在32-47号IDT。</p>
 <p>什么？你说电脑明明有一堆外设，中断号为什么这么少？仔细想想就会发现，如果所有的外设都给CPU发中断，那CPU不仅分辨不出来谁是谁，更是要炸了。因此，在x86框架下，所有的中断会被汇集到一个叫做8259A的芯片，它还有另一个名字，叫做<strong>可编程中断控制器</strong>（PIC），当然，目前已经被淘汰了。实际操作中，由PIC分辨每一个外设，并发送两个字节（0xCD 外设编号）给CPU，从而使得CPU自动执行对应外设的中断处理程序。</p>
-<p>好了，原理大致如此，我们开始。这么一看，中断处理和IDT也脱不了干系，先对16个外设中断信号对应的IDT进行设置，请添加在 <code>idt_flush</code> 之前：</p>
+<p>好了，原理大致如此，我们开始。这么一看，中断处理和IDT也脱不了干系，先对16个外设中断信号对应的IDT进行设置，以下是新的 <code>init_idt</code>：</p>
 <p><strong>代码 10-1 设置外设中断信号对应的中断描述符（kernel/gdtidt.c）</strong>
-<div class="highlight"><pre><span></span><code><span class="w">    </span><span class="n">idt_set_gate</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">)</span><span class="w"> </span><span class="n">irq0</span><span class="p">,</span><span class="w"> </span><span class="mh">0x08</span><span class="p">,</span><span class="w"> </span><span class="mh">0x8E</span><span class="p">);</span>
-<span class="w">    </span><span class="n">idt_set_gate</span><span class="p">(</span><span class="mi">33</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">)</span><span class="w"> </span><span class="n">irq1</span><span class="p">,</span><span class="w"> </span><span class="mh">0x08</span><span class="p">,</span><span class="w"> </span><span class="mh">0x8E</span><span class="p">);</span>
-<span class="w">    </span><span class="n">idt_set_gate</span><span class="p">(</span><span class="mi">34</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">)</span><span class="w"> </span><span class="n">irq2</span><span class="p">,</span><span class="w"> </span><span class="mh">0x08</span><span class="p">,</span><span class="w"> </span><span class="mh">0x8E</span><span class="p">);</span>
-<span class="w">    </span><span class="n">idt_set_gate</span><span class="p">(</span><span class="mi">35</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">)</span><span class="w"> </span><span class="n">irq3</span><span class="p">,</span><span class="w"> </span><span class="mh">0x08</span><span class="p">,</span><span class="w"> </span><span class="mh">0x8E</span><span class="p">);</span>
-<span class="w">    </span><span class="n">idt_set_gate</span><span class="p">(</span><span class="mi">36</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">)</span><span class="w"> </span><span class="n">irq4</span><span class="p">,</span><span class="w"> </span><span class="mh">0x08</span><span class="p">,</span><span class="w"> </span><span class="mh">0x8E</span><span class="p">);</span>
-<span class="w">    </span><span class="n">idt_set_gate</span><span class="p">(</span><span class="mi">37</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">)</span><span class="w"> </span><span class="n">irq5</span><span class="p">,</span><span class="w"> </span><span class="mh">0x08</span><span class="p">,</span><span class="w"> </span><span class="mh">0x8E</span><span class="p">);</span>
-<span class="w">    </span><span class="n">idt_set_gate</span><span class="p">(</span><span class="mi">38</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">)</span><span class="w"> </span><span class="n">irq6</span><span class="p">,</span><span class="w"> </span><span class="mh">0x08</span><span class="p">,</span><span class="w"> </span><span class="mh">0x8E</span><span class="p">);</span>
-<span class="w">    </span><span class="n">idt_set_gate</span><span class="p">(</span><span class="mi">39</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">)</span><span class="w"> </span><span class="n">irq7</span><span class="p">,</span><span class="w"> </span><span class="mh">0x08</span><span class="p">,</span><span class="w"> </span><span class="mh">0x8E</span><span class="p">);</span>
-<span class="w">    </span><span class="n">idt_set_gate</span><span class="p">(</span><span class="mi">40</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">)</span><span class="w"> </span><span class="n">irq8</span><span class="p">,</span><span class="w"> </span><span class="mh">0x08</span><span class="p">,</span><span class="w"> </span><span class="mh">0x8E</span><span class="p">);</span>
-<span class="w">    </span><span class="n">idt_set_gate</span><span class="p">(</span><span class="mi">41</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">)</span><span class="w"> </span><span class="n">irq9</span><span class="p">,</span><span class="w"> </span><span class="mh">0x08</span><span class="p">,</span><span class="w"> </span><span class="mh">0x8E</span><span class="p">);</span>
-<span class="w">    </span><span class="n">idt_set_gate</span><span class="p">(</span><span class="mi">42</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">)</span><span class="w"> </span><span class="n">irq10</span><span class="p">,</span><span class="w"> </span><span class="mh">0x08</span><span class="p">,</span><span class="w"> </span><span class="mh">0x8E</span><span class="p">);</span>
-<span class="w">    </span><span class="n">idt_set_gate</span><span class="p">(</span><span class="mi">43</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">)</span><span class="w"> </span><span class="n">irq11</span><span class="p">,</span><span class="w"> </span><span class="mh">0x08</span><span class="p">,</span><span class="w"> </span><span class="mh">0x8E</span><span class="p">);</span>
-<span class="w">    </span><span class="n">idt_set_gate</span><span class="p">(</span><span class="mi">44</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">)</span><span class="w"> </span><span class="n">irq12</span><span class="p">,</span><span class="w"> </span><span class="mh">0x08</span><span class="p">,</span><span class="w"> </span><span class="mh">0x8E</span><span class="p">);</span>
-<span class="w">    </span><span class="n">idt_set_gate</span><span class="p">(</span><span class="mi">45</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">)</span><span class="w"> </span><span class="n">irq13</span><span class="p">,</span><span class="w"> </span><span class="mh">0x08</span><span class="p">,</span><span class="w"> </span><span class="mh">0x8E</span><span class="p">);</span>
-<span class="w">    </span><span class="n">idt_set_gate</span><span class="p">(</span><span class="mi">46</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">)</span><span class="w"> </span><span class="n">irq14</span><span class="p">,</span><span class="w"> </span><span class="mh">0x08</span><span class="p">,</span><span class="w"> </span><span class="mh">0x8E</span><span class="p">);</span>
-<span class="w">    </span><span class="n">idt_set_gate</span><span class="p">(</span><span class="mi">47</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">)</span><span class="w"> </span><span class="n">irq15</span><span class="p">,</span><span class="w"> </span><span class="mh">0x08</span><span class="p">,</span><span class="w"> </span><span class="mh">0x8E</span><span class="p">);</span>
+<div class="highlight"><pre><span></span><code><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">init_idt</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">idt_ptr</span><span class="p">.</span><span class="n">limit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">idt_entry_t</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">256</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="n">idt_ptr</span><span class="p">.</span><span class="n">base</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;</span><span class="n">idt_entries</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">memset</span><span class="p">(</span><span class="o">&amp;</span><span class="n">idt_entries</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">idt_entry_t</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">256</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">32</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">16</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">idt_set_gate</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">)</span><span class="w"> </span><span class="n">intr_table</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="w"> </span><span class="mh">0x08</span><span class="p">,</span><span class="w"> </span><span class="mh">0x8E</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="n">idt_flush</span><span class="p">((</span><span class="kt">uint32_t</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;</span><span class="n">idt_ptr</span><span class="p">);</span>
+<span class="p">}</span>
 </code></pre></div></p>
-<p>（这一部分直接放在末尾即可）</p>
-<p><strong>代码 10-2 16个外设中断信号的声明（kernel/gdtidt.h）</strong>
-<div class="highlight"><pre><span></span><code><span class="k">extern</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">irq0</span><span class="p">();</span>
-<span class="k">extern</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">irq1</span><span class="p">();</span>
-<span class="k">extern</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">irq2</span><span class="p">();</span>
-<span class="k">extern</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">irq3</span><span class="p">();</span>
-<span class="k">extern</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">irq4</span><span class="p">();</span>
-<span class="k">extern</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">irq5</span><span class="p">();</span>
-<span class="k">extern</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">irq6</span><span class="p">();</span>
-<span class="k">extern</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">irq7</span><span class="p">();</span>
-<span class="k">extern</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">irq8</span><span class="p">();</span>
-<span class="k">extern</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">irq9</span><span class="p">();</span>
-<span class="k">extern</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">irq10</span><span class="p">();</span>
-<span class="k">extern</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">irq11</span><span class="p">();</span>
-<span class="k">extern</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">irq12</span><span class="p">();</span>
-<span class="k">extern</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">irq13</span><span class="p">();</span>
-<span class="k">extern</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">irq14</span><span class="p">();</span>
-<span class="k">extern</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">irq15</span><span class="p">();</span>
+<p>找不同环节，你能发现哪里做了修改吗？其实就是在 32 后面加了 16，因为总共有 16 个外设中断信号嘛。</p>
+<p><code>interrupt.asm</code> 中的代码几乎与异常时如出一辙，这些东西要放在 <code>isr_common_stub</code> 之前：</p>
+<p><strong>代码 10-2 外设中断信号的实现（kernel/interrupt.asm）</strong>
+<div class="highlight"><pre><span></span><code><span class="nf">section</span><span class="w"> </span><span class="no">.data</span>
+<span class="err">%</span><span class="nf">macro</span><span class="w"> </span><span class="no">IRQ</span><span class="w"> </span><span class="mi">1</span>
+<span class="nf">section</span><span class="w"> </span><span class="no">.text</span>
+<span class="nf">irq</span><span class="err">%</span><span class="mi">1</span><span class="p">:</span>
+<span class="w">    </span><span class="nf">cli</span>
+<span class="w">    </span><span class="nf">push</span><span class="w"> </span><span class="no">byte</span><span class="w"> </span><span class="mi">0</span>
+<span class="w">    </span><span class="nf">push</span><span class="w"> </span><span class="err">%</span><span class="mi">1</span>
+<span class="w">    </span><span class="nf">jmp</span><span class="w"> </span><span class="no">irq_common_stub</span>
+<span class="nf">section</span><span class="w"> </span><span class="no">.data</span>
+<span class="nf">dd</span><span class="w"> </span><span class="no">irq</span><span class="err">%</span><span class="mi">1</span>
+<span class="err">%</span><span class="nf">endmacro</span>
+
+<span class="nf">IRQ</span><span class="w"> </span><span class="mi">32</span>
+<span class="nf">IRQ</span><span class="w"> </span><span class="mi">33</span>
+<span class="nf">IRQ</span><span class="w"> </span><span class="mi">34</span>
+<span class="nf">IRQ</span><span class="w"> </span><span class="mi">35</span>
+<span class="nf">IRQ</span><span class="w"> </span><span class="mi">36</span>
+<span class="nf">IRQ</span><span class="w"> </span><span class="mi">37</span>
+<span class="nf">IRQ</span><span class="w"> </span><span class="mi">38</span>
+<span class="nf">IRQ</span><span class="w"> </span><span class="mi">39</span>
+<span class="nf">IRQ</span><span class="w"> </span><span class="mi">40</span>
+<span class="nf">IRQ</span><span class="w"> </span><span class="mi">41</span>
+<span class="nf">IRQ</span><span class="w"> </span><span class="mi">42</span>
+<span class="nf">IRQ</span><span class="w"> </span><span class="mi">43</span>
+<span class="nf">IRQ</span><span class="w"> </span><span class="mi">44</span>
+<span class="nf">IRQ</span><span class="w"> </span><span class="mi">45</span>
+<span class="nf">IRQ</span><span class="w"> </span><span class="mi">46</span>
+<span class="nf">IRQ</span><span class="w"> </span><span class="mi">47</span>
+
+<span class="nf">section</span><span class="w"> </span><span class="no">.text</span>
+<span class="err">[</span><span class="nf">extern</span><span class="w"> </span><span class="no">irq_handler</span><span class="p">]</span>
+<span class="c1">; 通用中断处理程序</span>
+<span class="nl">irq_common_stub:</span>
+<span class="w">    </span><span class="nf">pusha</span><span class="w"> </span><span class="c1">; 存储所有寄存器</span>
+
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="no">ds</span>
+<span class="w">    </span><span class="nf">push</span><span class="w"> </span><span class="no">eax</span><span class="w"> </span><span class="c1">; 存储ds</span>
+
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">ax</span><span class="p">,</span><span class="w"> </span><span class="mi">0x10</span><span class="w"> </span><span class="c1">; 将内核数据段赋值给各段</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">ds</span><span class="p">,</span><span class="w"> </span><span class="no">ax</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">es</span><span class="p">,</span><span class="w"> </span><span class="no">ax</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">fs</span><span class="p">,</span><span class="w"> </span><span class="no">ax</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">gs</span><span class="p">,</span><span class="w"> </span><span class="no">ax</span>
+
+<span class="w">    </span><span class="nf">call</span><span class="w"> </span><span class="no">irq_handler</span><span class="w"> </span><span class="c1">; 调用C语言处理函数</span>
+
+<span class="w">    </span><span class="nf">pop</span><span class="w"> </span><span class="no">eax</span><span class="w"> </span><span class="c1">; 恢复各段</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">ds</span><span class="p">,</span><span class="w"> </span><span class="no">ax</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">es</span><span class="p">,</span><span class="w"> </span><span class="no">ax</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">fs</span><span class="p">,</span><span class="w"> </span><span class="no">ax</span>
+<span class="w">    </span><span class="nf">mov</span><span class="w"> </span><span class="no">gs</span><span class="p">,</span><span class="w"> </span><span class="no">ax</span>
+
+<span class="w">    </span><span class="nf">popa</span><span class="w"> </span><span class="c1">; 弹出所有寄存器</span>
+
+<span class="w">    </span><span class="nf">add</span><span class="w"> </span><span class="no">esp</span><span class="p">,</span><span class="w"> </span><span class="mi">8</span><span class="w"> </span><span class="c1">; 弹出错误码和中断ID</span>
+<span class="w">    </span><span class="nf">iret</span><span class="w"> </span><span class="c1">; 从中断返回</span>
 </code></pre></div></p>
-<p><code>interrupt.asm</code> 中的代码几乎与异常时如出一辙：</p>
-<p><strong>代码 10-3 外设中断信号的实现（kernel/interrupt.asm）</strong>
-<div class="highlight"><pre><span></span><code><span class="o">%</span><span class="n">macro</span><span class="w"> </span><span class="n">IRQ</span><span class="w"> </span><span class="mi">2</span>
-<span class="n">global</span><span class="w"> </span><span class="n">irq</span><span class="o">%</span><span class="mi">1</span>
-<span class="n">irq</span><span class="o">%</span><span class="mi">1</span><span class="o">:</span>
-<span class="w">    </span><span class="n">cli</span>
-<span class="w">    </span><span class="n">push</span><span class="w"> </span><span class="n">byte</span><span class="w"> </span><span class="mi">0</span>
-<span class="w">    </span><span class="n">push</span><span class="w"> </span><span class="o">%</span><span class="mi">2</span>
-<span class="w">    </span><span class="n">jmp</span><span class="w"> </span><span class="n">irq_common_stub</span>
-<span class="o">%</span><span class="n">endmacro</span>
-
-<span class="n">IRQ</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span>
-<span class="n">IRQ</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">33</span>
-<span class="n">IRQ</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">34</span>
-<span class="n">IRQ</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">35</span>
-<span class="n">IRQ</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="mi">36</span>
-<span class="n">IRQ</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">37</span>
-<span class="n">IRQ</span><span class="w"> </span><span class="mi">6</span><span class="p">,</span><span class="w"> </span><span class="mi">38</span>
-<span class="n">IRQ</span><span class="w"> </span><span class="mi">7</span><span class="p">,</span><span class="w"> </span><span class="mi">39</span>
-<span class="n">IRQ</span><span class="w"> </span><span class="mi">8</span><span class="p">,</span><span class="w"> </span><span class="mi">40</span>
-<span class="n">IRQ</span><span class="w"> </span><span class="mi">9</span><span class="p">,</span><span class="w"> </span><span class="mi">41</span>
-<span class="n">IRQ</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">42</span>
-<span class="n">IRQ</span><span class="w"> </span><span class="mi">11</span><span class="p">,</span><span class="w"> </span><span class="mi">43</span>
-<span class="n">IRQ</span><span class="w"> </span><span class="mi">12</span><span class="p">,</span><span class="w"> </span><span class="mi">44</span>
-<span class="n">IRQ</span><span class="w"> </span><span class="mi">13</span><span class="p">,</span><span class="w"> </span><span class="mi">45</span>
-<span class="n">IRQ</span><span class="w"> </span><span class="mi">14</span><span class="p">,</span><span class="w"> </span><span class="mi">46</span>
-<span class="n">IRQ</span><span class="w"> </span><span class="mi">15</span><span class="p">,</span><span class="w"> </span><span class="mi">47</span>
-
-<span class="p">[</span><span class="k">extern</span><span class="w"> </span><span class="n">irq_handler</span><span class="p">]</span>
-<span class="p">;</span><span class="w"> </span><span class="n">通用中断处理程序</span>
-<span class="nl">irq_common_stub</span><span class="p">:</span>
-<span class="w">    </span><span class="n">pusha</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="n">存储所有寄存器</span>
-
-<span class="w">    </span><span class="n">mov</span><span class="w"> </span><span class="n">ax</span><span class="p">,</span><span class="w"> </span><span class="n">ds</span>
-<span class="w">    </span><span class="n">push</span><span class="w"> </span><span class="n">eax</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="n">存储ds</span>
-
-<span class="w">    </span><span class="n">mov</span><span class="w"> </span><span class="n">ax</span><span class="p">,</span><span class="w"> </span><span class="mh">0x10</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="n">将内核数据段赋值给各段</span>
-<span class="w">    </span><span class="n">mov</span><span class="w"> </span><span class="n">ds</span><span class="p">,</span><span class="w"> </span><span class="n">ax</span>
-<span class="w">    </span><span class="n">mov</span><span class="w"> </span><span class="n">es</span><span class="p">,</span><span class="w"> </span><span class="n">ax</span>
-<span class="w">    </span><span class="n">mov</span><span class="w"> </span><span class="n">fs</span><span class="p">,</span><span class="w"> </span><span class="n">ax</span>
-<span class="w">    </span><span class="n">mov</span><span class="w"> </span><span class="n">gs</span><span class="p">,</span><span class="w"> </span><span class="n">ax</span>
-
-<span class="w">    </span><span class="n">call</span><span class="w"> </span><span class="n">irq_handler</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="n">调用C语言处理函数</span>
-
-<span class="w">    </span><span class="n">pop</span><span class="w"> </span><span class="n">eax</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="n">恢复各段</span>
-<span class="w">    </span><span class="n">mov</span><span class="w"> </span><span class="n">ds</span><span class="p">,</span><span class="w"> </span><span class="n">ax</span>
-<span class="w">    </span><span class="n">mov</span><span class="w"> </span><span class="n">es</span><span class="p">,</span><span class="w"> </span><span class="n">ax</span>
-<span class="w">    </span><span class="n">mov</span><span class="w"> </span><span class="n">fs</span><span class="p">,</span><span class="w"> </span><span class="n">ax</span>
-<span class="w">    </span><span class="n">mov</span><span class="w"> </span><span class="n">gs</span><span class="p">,</span><span class="w"> </span><span class="n">ax</span>
-
-<span class="w">    </span><span class="n">popa</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="n">弹出所有寄存器</span>
-
-<span class="w">    </span><span class="n">add</span><span class="w"> </span><span class="n">esp</span><span class="p">,</span><span class="w"> </span><span class="mi">8</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="n">弹出错误码和中断ID</span>
-<span class="w">    </span><span class="n">iret</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="n">从中断返回</span>
-</code></pre></div></p>
-<p>只是调用的参数换了个名字。最后是 <code>irq_handler</code>：</p>
-<p><strong>代码 10-4 中断处理程序的C语言接口（kernel/isr.c）</strong>
+<p>结果 IRQ 宏里还是一样的小把戏，只是调用的宏换了个名字。最后是 <code>irq_handler</code>，放上来看看：</p>
+<p><strong>代码 10-3 中断处理程序的C语言接口（kernel/isr.c）</strong>
 <div class="highlight"><pre><span></span><code><span class="kt">void</span><span class="w"> </span><span class="nf">irq_handler</span><span class="p">(</span><span class="n">registers_t</span><span class="w"> </span><span class="n">regs</span><span class="p">)</span>
 <span class="p">{</span>
 <span class="w">    </span><span class="n">monitor_write</span><span class="p">(</span><span class="s">&quot;received irq: &quot;</span><span class="p">);</span>
@@ -1173,7 +1156,7 @@
 <p>甚至完全一致，除了删掉了关闭中断和无限悬停的部分。</p>
 <p>最后，由于 <code>kernel.asm</code> 中关闭了外部中断，在此处需要重新打开。因此，需要在 <code>main.c</code> 中把上一节测试用的 <code>asm("ud2");</code> 替换为 <code>asm("sti");</code>。</p>
 <p>完整 <code>main.c</code> 如下：</p>
-<p><strong>代码 10-5 测试用（kernel/main.c）</strong>
+<p><strong>代码 10-4 测试用（kernel/main.c）</strong>
 <div class="highlight"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;monitor.h&quot;</span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;gdtidt.h&quot;</span>
 
@@ -1199,9 +1182,9 @@
 <p>嗯？8号中断？这不是异常吗？这是怎么回事？？</p>
 <p>我当初做到这里的时候，一度怀疑人生，在代码中查询到底是哪里出了问题，最终没有结果（笑）。后来查阅资料发现，8号异常不会随便出现，当CPU找不到对应异常的处理程序，但是有8号异常处理程序时，才会调用8号异常处理程序（顺便说一下，如果没有8号处理程序，结果自然就是重启啦）。最终我才得以确定，程序本身并没有问题。</p>
 <p>那么，这个神秘的8号异常是哪里来的呢？</p>
-<p>解铃还须系铃人。我们鼓捣了半天，偏偏把最重要的 PIC 给忘了！而16位模式下，PIC默认时钟中断为8号外设，由于我们没管PIC，所以它还是16位的状态，此时出现了时钟中断，PIC自然就会给CPU发送8号中断！</p>
+<p>解铃还须系铃人。我们鼓捣了半天，偏偏把最重要的 PIC 给忘了！而16位模式下，PIC默认时钟中断为对应的是 8 号而不是我们新设定的 32 号，由于我们没管PIC，所以它还是16位的状态，此时出现了时钟中断，PIC自然就会给CPU发送8号中断！</p>
 <p>重设PIC也是非常古老、非常屎山也是非常定式的操作，由于涉及到硬件，这里不多解说。总之只要添加这8行代码，就没有问题（把它们添加在 <code>init_idt</code> 中的 <code>memset</code> 之前）：</p>
-<p><strong>代码 10-6 重设PIC（kernel/gdtidt.c）</strong>
+<p><strong>代码 10-5 重设PIC（kernel/gdtidt.c）</strong>
 <div class="highlight"><pre><span></span><code><span class="c1">// 初始化PIC</span>
 <span class="w">    </span><span class="n">outb</span><span class="p">(</span><span class="mh">0x20</span><span class="p">,</span><span class="w"> </span><span class="mh">0x11</span><span class="p">);</span>
 <span class="w">    </span><span class="n">outb</span><span class="p">(</span><span class="mh">0xA0</span><span class="p">,</span><span class="w"> </span><span class="mh">0x11</span><span class="p">);</span>
@@ -1220,7 +1203,7 @@
 <p>出现了 <code>received irq: 32</code>，说明我们重设PIC成功了，耶！但是仔细一想，谁家时钟只会滴答一次？那么为什么我们的时钟中断只发了一次就没有了？</p>
 <p>这是因为，PIC非常忙，不止有这一个外设要管，鬼知道你这边完事没有。因此，我们需要向PIC发信号说“处理完毕啦”，这个信号被称作EOI。</p>
 <p>我们在 <code>irq_handler</code> 中加入EOI的发送：</p>
-<p><strong>代码 10-7 发送EOI（kernel/isr.c）</strong>
+<p><strong>代码 10-6 发送EOI（kernel/isr.c）</strong>
 <div class="highlight"><pre><span></span><code><span class="kt">void</span><span class="w"> </span><span class="nf">irq_handler</span><span class="p">(</span><span class="n">registers_t</span><span class="w"> </span><span class="n">regs</span><span class="p">)</span>
 <span class="p">{</span>
 <span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">regs</span><span class="p">.</span><span class="n">int_no</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mh">0x28</span><span class="p">)</span><span class="w"> </span><span class="n">outb</span><span class="p">(</span><span class="mh">0xA0</span><span class="p">,</span><span class="w"> </span><span class="mh">0x20</span><span class="p">);</span><span class="w"> </span><span class="c1">// 给从片发EOI</span>
@@ -1237,7 +1220,7 @@
 <p>至此，我们成功实现了对 IRQ 的接收。不过，我们对外设中断的要求更苛刻一点——能不能让接收方自己决定怎么处置外设中断呢？</p>
 <p>这一部分完全在软件层级，可以用 C 语言来完成。</p>
 <p>首先，定义自定义中断处理程序函数：</p>
-<p><strong>代码 10-8 开始自定义中断处理程序（kernel/isr.h）</strong>
+<p><strong>代码 10-7 开始自定义中断处理程序（kernel/isr.h）</strong>
 <div class="highlight"><pre><span></span><code><span class="cp">#define IRQ0 32</span>
 <span class="cp">#define IRQ1 33</span>
 <span class="cp">#define IRQ2 34</span>
@@ -1259,11 +1242,11 @@
 <span class="kt">void</span><span class="w"> </span><span class="nf">register_interrupt_handler</span><span class="p">(</span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="n">isr_t</span><span class="w"> </span><span class="n">handler</span><span class="p">);</span>
 </code></pre></div></p>
 <p>下面已经添加了注册函数了，在 <code>isr.c</code> 中加入一行：</p>
-<p><strong>代码 10-9 自定义中断处理程序列表（kernel/isr.c）</strong>
+<p><strong>代码 10-8 自定义中断处理程序列表（kernel/isr.c）</strong>
 <div class="highlight"><pre><span></span><code><span class="k">static</span><span class="w"> </span><span class="n">isr_t</span><span class="w"> </span><span class="n">interrupt_handlers</span><span class="p">[</span><span class="mi">256</span><span class="p">];</span>
 </code></pre></div></p>
 <p>由于 <code>isr_t</code> 是函数指针，因此可以用是否为 NULL 判断是否存在自定义中断处理程序。这是新版的 <code>irq_handler</code>：</p>
-<p><strong>代码 10-10 将中断信号分发给自定义处理程序，以及注册函数（kernel/isr.c）</strong>
+<p><strong>代码 10-9 将中断信号分发给自定义处理程序，以及注册函数（kernel/isr.c）</strong>
 <div class="highlight"><pre><span></span><code><span class="kt">void</span><span class="w"> </span><span class="nf">irq_handler</span><span class="p">(</span><span class="n">registers_t</span><span class="w"> </span><span class="n">regs</span><span class="p">)</span>
 <span class="p">{</span>
 <span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">regs</span><span class="p">.</span><span class="n">int_no</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mh">0x28</span><span class="p">)</span><span class="w"> </span><span class="n">outb</span><span class="p">(</span><span class="mh">0xA0</span><span class="p">,</span><span class="w"> </span><span class="mh">0x20</span><span class="p">);</span><span class="w"> </span><span class="c1">// 中断号 &gt;= 40，来自从片，发送EOI给从片</span>
@@ -1281,7 +1264,7 @@
 <span class="w">    </span><span class="n">interrupt_handlers</span><span class="p">[</span><span class="n">n</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">handler</span><span class="p">;</span>
 <span class="p">}</span>
 </code></pre></div></p>
-<p>为避免 <code>regs</code> 在传值中出现不必要的拷贝，这里选择使用指针形式对自定义中断处理程序进行传入。</p>
+<p>为避免 <code>regs</code> 在传值中出现不必要的拷贝，这里选择使用指针形式向自定义中断处理程序传入寄存器。</p>
 <p>现在再编译运行，应该恢复到图 8-6 的状态了，一片祥和。</p>
 <p>那么，接下来就是暴风雨了，我们来自定义一个时钟中断处理程序。</p>
 <p>首先，对于时钟中断目前的频率，我们只知道 PIT 内部的时钟频率为 1193180 Hz（什么b数），对于具体的频率，我们是一无所知的。不过，这个值可以更改，具体方法为：</p>

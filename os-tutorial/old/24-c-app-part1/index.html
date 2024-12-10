@@ -1539,6 +1539,109 @@
 <p>中间的大 <code>if</code> 就是在向操作系统归还内存，首先判断能不能归还，只要当前的这个内存正好抵着现在的 <code>program break</code>，那就可以把这段内存归还。首先判断是不是只有这一个内存块，如果是的话直接清空整个链表即可；否则，由于链表中的内存块按分配先后顺序排列，那么在堆末尾的内存块，一定也在链表末尾。所以，这里直接遍历整个链表，在即将到达末尾的时候把末尾内存块踢出链表，并同时更新现在的末尾位置。最后，就可以释放掉这个内存块对应大小的内存，以及这个内存块本身占据的内存。以免你忘了，<code>sbrk</code> 可以使用正数分配、负数释放。而使用 <code>sbrk(0)</code>，则相当于返回现在的 <code>program break</code>，因为它的行为相当于给原 <code>program break</code> 加 0 再返回旧的。</p>
 <p>好了，一个简单的 <code>malloc/free</code> 就已经实现了，居然连 100 行都不到，应该很简单吧。</p>
 <p>有了 <code>malloc</code> 打底（事实上有 <code>sbrk</code> 就够了），给应用程序传参也就不是什么难事，<code>malloc</code> 就等着写完应用程序传参再测吧。</p>
+<p>既然给应用程序传参是通过函数的参数，我们就操作新应用程序的栈。或许有人就要问了：</p>
+<blockquote>
+<p>既然 shell 里解析出了 argc 和 argv，为什么不直接传，反而传的是 cmdline 呢？</p>
+</blockquote>
+<p>这是因为，<code>argc</code> 固然好传，但 <code>argv</code> 并不好传。相比之下 <code>cmdline</code> 好传得多，只需要分配一块内存，把 <code>cmdline</code> 复制进去，然后往栈里写一个指向新内存的指针即可。</p>
+<p>这也正是我们所要做的，请看下面的代码：</p>
+<p><strong>代码 24-14 向应用程序传入 <code>cmdline</code>（kernel/exec.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="w">    </span><span class="c1">// 接下来把cmdline传给app，解析工作由CRT完成</span>
+<span class="w">    </span><span class="c1">// 这样我就不用管怎么把一个char **放到栈里了（（（（</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">new_esp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">last</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">first</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1024</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1024</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">prev_brk</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sys_sbrk</span><span class="p">(</span><span class="n">strlen</span><span class="p">(</span><span class="n">cmdline</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span><span class="w"> </span><span class="c1">// 分配cmdline这么长的内存，反正也输入不了1MB长的命令</span>
+<span class="w">    </span><span class="n">strcpy</span><span class="p">((</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="n">ds</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">prev_brk</span><span class="p">),</span><span class="w"> </span><span class="n">cmdline</span><span class="p">);</span><span class="w"> </span><span class="c1">// sys_sbrk使用相对地址，要转换成以ds为基址的绝对地址需要加上ds</span>
+<span class="w">    </span><span class="o">*</span><span class="p">((</span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="n">ds</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">new_esp</span><span class="p">))</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="n">prev_brk</span><span class="p">;</span><span class="w"> </span><span class="c1">// 把prev_brk的地址写进栈里，这个位置可以被_start访问</span>
+<span class="w">    </span><span class="n">new_esp</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w"> </span><span class="c1">// esp后移一个dword</span>
+<span class="w">    </span><span class="c1">// 中略</span>
+<span class="w">    </span><span class="n">start_app</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">8</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="n">new_esp</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">8</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="p">(</span><span class="n">task_now</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">tss</span><span class="p">.</span><span class="n">esp0</span><span class="p">));</span>
+</code></pre></div></p>
+<p><code>sys_sbrk</code> 返回的是相对 <code>ds_base</code> 的地址，所以下面的操作都要手动加上它。接下来手动存了一下新的 <code>esp</code>，这是为了化简程序。然后直接调用 <code>sbrk</code> 而不是 <code>malloc</code> 分配空间，没有中间商赚差价，牢记 <code>sbrk</code> 返回的是调用之前的 <code>program break</code>，所以此时的 <code>prev_brk</code> 正好就是新内存的起点。</p>
+<p>接下来调用 <code>strcpy</code>，向新内存写入 <code>cmdline</code>，为什么加 <code>ds</code> 前面已经说了。最后往栈里写入已经指向这片区域的 <code>prev_brk</code>，并同时把栈后移 4 位，这样让 <code>esp + 4</code> 指向 <code>prev_brk</code>，后面就可以从这里读出 <code>cmdline</code>。</p>
+<p>这边写完了，从 C 里读就更简单了，先从 <code>shell</code> 里偷一个 <code>cmd_parse</code>，然后如此修改 <code>_start</code>：</p>
+<p><strong>代码 24-15 能够接收参数的（apps/start.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;unistd.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stddef.h&gt;</span>
+
+<span class="cp">#define MAX_ARG_NR 30</span>
+
+<span class="k">static</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">argv</span><span class="p">[</span><span class="n">MAX_ARG_NR</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="nb">NULL</span><span class="p">};</span><span class="w"> </span><span class="c1">// argv，字面意思</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">**</span><span class="n">argv</span><span class="p">);</span>
+
+<span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="nf">cmd_parse</span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">cmd_str</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">**</span><span class="n">argv</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">token</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// shell.c里有自己抄去难道这个还要我给你写吗）））</span>
+<span class="p">}</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">_start</span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">cmdline</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">argc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cmd_parse</span><span class="p">(</span><span class="n">cmdline</span><span class="p">,</span><span class="w"> </span><span class="n">argv</span><span class="p">,</span><span class="w"> </span><span class="sc">&#39; &#39;</span><span class="p">);</span>
+<span class="w">    </span><span class="n">exit</span><span class="p">(</span><span class="n">main</span><span class="p">(</span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="n">argv</span><span class="p">));</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>看上去复杂了不少，不过没什么需要注意的，基本上都挺直接吧。</p>
+<p>哦对了，<code>cmd_parse</code> 会修改 <code>cmd_str</code> 的内容，所以在 <code>shell</code> 里要备份一下 <code>cmd_line</code>，然后把备份的传进 <code>create_process</code>：</p>
+<p><strong>代码 24-16 <code>shell</code> 里杂七杂八的小修改（apps/shell.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="k">static</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">cmd_line</span><span class="p">[</span><span class="n">MAX_CMD_LEN</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="p">};</span><span class="w"> </span><span class="c1">// 输入命令行的内容</span>
+<span class="k">static</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">cmd_line_back</span><span class="p">[</span><span class="n">MAX_CMD_LEN</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="p">};</span><span class="w"> </span><span class="c1">// 这一行是新加的</span>
+<span class="k">static</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">argv</span><span class="p">[</span><span class="n">MAX_ARG_NR</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="nb">NULL</span><span class="p">};</span><span class="w"> </span><span class="c1">// argv，字面意思</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="kt">int</span><span class="w"> </span><span class="nf">try_to_run_external</span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="n">exist</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">ret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">create_process</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">cmd_line_back</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;/&quot;</span><span class="p">);</span><span class="w"> </span><span class="c1">// 这里经过修改</span>
+<span class="w">    </span><span class="o">*</span><span class="n">exist</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">ret</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">-1</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 略过添加.bin的处理</span>
+<span class="w">        </span><span class="n">ret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">create_process</span><span class="p">(</span><span class="n">new_name</span><span class="p">,</span><span class="w"> </span><span class="n">cmd_line_back</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;/&quot;</span><span class="p">);</span><span class="w"> </span><span class="c1">// 这里经过修改</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">ret</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">-1</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="o">*</span><span class="n">exist</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">    </span><span class="n">ret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">waitpid</span><span class="p">(</span><span class="n">ret</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">ret</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>现在，应用程序应该就已经可以接收参数了，可是拿什么来测试呢？根据我的经验，自己实现的东西都不能够说明问题，所以我们直接移植一个小程序玩玩吧！</p>
+<p>要想规模小、我们目前的系统调用就足够，还得有点实际用途能看出来成果，这条件虽然苛刻，但我还是成功找到了一个项目：<a href="https://github.com/rswier/c4">C in four functions</a>，只有区区 500 行，且用到的大部分东西都已经实现。唯一需要注意的是 <code>memory.h</code> 和 <code>fcntl.h</code> 虽然没有，但里面的东西都已经实现，把 <code>include</code> 他们俩那两行注释掉即可。</p>
+<p>添加了新的应用程序，Makefile 也要修改，在 <code>APPS</code> 中添加一个 <code>out/c4.bin</code>，并在 <code>hd.img</code> 里写入：</p>
+<p><strong>代码 24-17 写入 <code>hd.img</code> 的内容（Makefile）</strong>
+<div class="highlight"><pre><span></span><code><span class="nf">hd.img </span><span class="o">:</span><span class="w"> </span><span class="n">out</span>/<span class="n">boot</span>.<span class="n">bin</span> <span class="n">out</span>/<span class="n">loader</span>.<span class="n">bin</span> <span class="n">out</span>/<span class="n">kernel</span>.<span class="n">bin</span> <span class="k">$(</span><span class="nv">APPS</span><span class="k">)</span>
+<span class="w">    </span>ftimgcreate<span class="w"> </span>hd.img<span class="w"> </span>-t<span class="w"> </span>hd<span class="w"> </span>-size<span class="w"> </span><span class="m">80</span>
+<span class="w">    </span>ftformat<span class="w"> </span>hd.img<span class="w"> </span>-t<span class="w"> </span>hd<span class="w"> </span>-f<span class="w"> </span>fat16
+<span class="w">    </span>ftcopy<span class="w"> </span>out/loader.bin<span class="w"> </span>-to<span class="w"> </span>-img<span class="w"> </span>hd.img
+<span class="w">    </span>ftcopy<span class="w"> </span>out/kernel.bin<span class="w"> </span>-to<span class="w"> </span>-img<span class="w"> </span>hd.img
+<span class="w">    </span>ftcopy<span class="w"> </span>out/test_c.bin<span class="w"> </span>-to<span class="w"> </span>-img<span class="w"> </span>hd.img
+<span class="w">    </span>ftcopy<span class="w"> </span>out/test2.bin<span class="w"> </span>-to<span class="w"> </span>-img<span class="w"> </span>hd.img
+<span class="w">    </span>ftcopy<span class="w"> </span>out/shell.bin<span class="w"> </span>-to<span class="w"> </span>-img<span class="w"> </span>hd.img
+<span class="w">    </span>ftcopy<span class="w"> </span>out/c4.bin<span class="w"> </span>-to<span class="w"> </span>-img<span class="w"> </span>hd.img
+<span class="w">    </span>ftcopy<span class="w"> </span>apps/test_c.c<span class="w"> </span>-to<span class="w"> </span>-img<span class="w"> </span>hd.img
+<span class="w">    </span>ftcopy<span class="w"> </span>apps/c4.c<span class="w"> </span>-to<span class="w"> </span>-img<span class="w"> </span>hd.img
+<span class="w">    </span>dd<span class="w"> </span><span class="k">if</span><span class="o">=</span>out/boot.bin<span class="w"> </span><span class="nv">of</span><span class="o">=</span>hd.img<span class="w"> </span><span class="nv">bs</span><span class="o">=</span><span class="m">512</span><span class="w"> </span><span class="nv">count</span><span class="o">=</span><span class="m">1</span>
+</code></pre></div></p>
+<p>我们不仅添加了 <code>c4.bin</code>，还添加了 <code>test_c.c</code> 和 <code>c4.c</code>。因为 <code>c4</code> 其实是一个小型的 C 解释器，可以直接执行 C 代码，但它是移植来的，这里不多做讲解。总之，既然能执行 C 代码，就得有 C 代码，<code>c4.c</code> 和 <code>test_c.c</code> 就是两个规模大和规模小的测试文件。</p>
+<p>现在终于可以编译运行，效果应如下图：</p>
+<p><img alt="" src="../images/graph-23-3.png" />
+（图 24-2 来自 c4 的 Hello, World!）</p>
+<p>首先执行了编译的原生 <code>test_c</code>，然后用 <code>c4</code> 执行源代码 <code>test_c.c</code>，都没有问题；后来又先用 <code>c4</code> 自己运行自己 <code>c4.c</code>，然后再执行 <code>test_c.c</code>，再往下甚至又多套了一层，也是毫无问题。当然了，执行速度肯定是顺次往下越来越慢。<code>c4</code> 里也用到了 <code>malloc</code>，一石二鸟，这说明我们做的工作都成功了！</p>
+<p>忽然想起我们分配的资源来，之前在 <code>exit</code> 的时候都没有妥善释放，但经过测试，<code>exit</code> 的时候释放会出现莫名其妙的问题，所以只能放在 <code>wait</code> 里释放了，不知道这算不算一种我们 OS 特有的僵尸进程……（笑）</p>
+<p><strong>代码 24-18 释放任务所占资源（kernel/mtask.c）</strong>
+<div class="highlight"><pre><span></span><code><span class="kt">int</span><span class="w"> </span><span class="nf">task_wait</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">pid</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">task_t</span><span class="w"> </span><span class="o">*</span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">taskctl</span><span class="o">-&gt;</span><span class="n">tasks0</span><span class="p">[</span><span class="n">pid</span><span class="p">];</span><span class="w"> </span><span class="c1">// 找出对应的task</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">task</span><span class="o">-&gt;</span><span class="n">my_retval</span><span class="p">.</span><span class="n">pid</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">-1</span><span class="p">);</span><span class="w"> </span><span class="c1">// 若没有返回值就一直等着</span>
+<span class="w">    </span><span class="n">task</span><span class="o">-&gt;</span><span class="n">flags</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="c1">// 释放为可用</span>
+<span class="w">    </span><span class="c1">// 总算把你等死了，释放该任务所占资源</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">MAX_FILE_OPEN_PER_TASK</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">task</span><span class="o">-&gt;</span><span class="n">fd_table</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">-1</span><span class="p">)</span><span class="w"> </span><span class="n">sys_close</span><span class="p">(</span><span class="n">task</span><span class="o">-&gt;</span><span class="n">fd_table</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span><span class="w"> </span><span class="c1">// 关闭所有打开的文件</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="c1">// 该任务malloc的所有东西都在数据段里，所以释放了数据段就相当于全释放了</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">task</span><span class="o">-&gt;</span><span class="n">is_user</span><span class="p">)</span><span class="w"> </span><span class="n">kfree</span><span class="p">((</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">task</span><span class="o">-&gt;</span><span class="n">ds_base</span><span class="p">);</span><span class="w"> </span><span class="c1">// 释放数据段</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">task</span><span class="o">-&gt;</span><span class="n">my_retval</span><span class="p">.</span><span class="n">val</span><span class="p">;</span><span class="w"> </span><span class="c1">// 拿到返回值</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p>再编译运行一遍，当然是毫无问题啦。这意味着我们的 OS 之旅终于可以暂告一段落了。</p>
+<p>不过告一段落是一方面，怎么总感觉差点东西？这个 <code>work_dir</code> 参数加了怎么没有用到呢？既然 <code>ftcopy</code> 支持目录为什么我们不支持呢？嗯……</p>
+<p>本来以为这一节就可以结束教程了，没想到还留了这一个瑕疵，就当是一个小尾巴吧。下一节我们将在原有文件系统的基础上进行修改，实现目录，或许还有一些其他的高级玩意哦。</p>
 
 
 
